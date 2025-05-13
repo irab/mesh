@@ -23,6 +23,7 @@
                 <li><a href="#differences">Key Differences</a></li>
                 <li><a href="#disaster">Disaster Scenarios</a></li>
                 <li><a href="#use-cases">Use Cases</a></li>
+                <li><a href="routing.html">Routing Visualization</a></li>
                 <li><a href="technical.html">Technical Details</a></li>
             </ul>
         </div>
@@ -140,6 +141,61 @@
                                 <h4>MeshCore</h4>
                                 <p>Implements three distinct routing modes: Flood Routing (with priority), Direct Routing (path-specific), and Zero-Hop Routing (local broadcast). Focuses on selective forwarding to reduce network load.</p>
                             </div>
+                        </div>
+                        
+                        <div class="routing-diagram">
+                            <h4>Routing Mechanisms Compared</h4>
+                            <div class="diagram-container">
+                                <div class="diagram meshtastic-diagram">
+                                    <h5>Meshtastic Flooding Approach</h5>
+                                    <div class="animation-container">
+                                        <div class="node source-node">A</div>
+                                        <div class="node">B</div>
+                                        <div class="node">C</div>
+                                        <div class="node">D</div>
+                                        <div class="node destination-node">E</div>
+                                        <div class="connection"></div>
+                                        <div class="message-particle meshtastic-particle"></div>
+                                        <div class="message-particle meshtastic-particle-2"></div>
+                                        <div class="message-particle meshtastic-particle-3"></div>
+                                    </div>
+                                    <p>Messages flood through all available paths to reach the destination, maximizing delivery probability but creating potential congestion</p>
+                                </div>
+                                
+                                <div class="diagram meshcore-diagram">
+                                    <h5>MeshCore Selective Routing</h5>
+                                    <div class="animation-container">
+                                        <div class="node source-node">A</div>
+                                        <div class="node">B</div>
+                                        <div class="node">C</div>
+                                        <div class="node">D</div>
+                                        <div class="node destination-node">E</div>
+                                        <div class="connection"></div>
+                                        <!-- Phase 1: Flooding to discover path -->
+                                        <div class="message-particle meshcore-flood-1"></div>
+                                        <div class="message-particle meshcore-flood-2"></div>
+                                        <div class="message-particle meshcore-flood-3"></div>
+                                        <!-- Phase 2: Route discovery and link establishment -->
+                                        <div class="route-link a-to-c"></div>
+                                        <div class="route-link c-to-e"></div>
+                                        <!-- Phase 3: Direct routing -->
+                                        <div class="message-particle meshcore-direct-packet"></div>
+                                        <!-- Dropped packets at non-route nodes -->
+                                        <div class="message-particle meshcore-dropped-1"></div>
+                                        <div class="message-particle meshcore-dropped-2"></div>
+                                    </div>
+                                    <div class="phase-indicator">
+                                        <div class="phase-text phase-1 active">Phase 1: Flooding to find path</div>
+                                        <div class="phase-text phase-2">Phase 2: Route discovery</div>
+                                        <div class="phase-text phase-3">Phase 3: Optimized direct routing</div>
+                                    </div>
+                                    <p>Messages travel along specific routes, optimizing bandwidth but requiring path establishment</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="cta-message">
+                            <a href="routing.html" class="button">See Interactive D3.js Routing Visualization <i class="fas fa-arrow-right"></i></a>
                         </div>
                     </div>
                 </div>

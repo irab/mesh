@@ -484,11 +484,456 @@ h3.vs {
 }
 
 .version-description {
-    text-align: center;
     max-width: 800px;
-    margin: 0 auto 30px;
-    line-height: 1.6;
-    font-size: 1.1rem;
+    margin: 0 auto;
+    text-align: center;
+    padding: 20px;
+    background-color: rgba(0,0,0,0.02);
+    border-radius: 8px;
+    margin-top: 20px;
+}
+
+/* Routing Diagram Animation Styles */
+.routing-diagram {
+    margin-top: 2rem;
+    background-color: #f8f9fa;
+    padding: 1.5rem;
+    border-radius: var(--border-radius);
+    box-shadow: var(--card-shadow);
+}
+
+.routing-diagram h4 {
+    text-align: center;
+    margin-bottom: 1.5rem;
+    color: var(--header-bg-color);
+}
+
+.diagram-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+}
+
+.diagram {
+    flex: 1 1 calc(50% - 1rem);
+    min-width: 280px;
+    max-width: 500px;
+    text-align: center;
+    padding: 1rem;
+    border-radius: var(--border-radius);
+}
+
+.meshtastic-diagram {
+    background-color: rgba(30, 136, 229, 0.05);
+    border: 2px solid var(--meshtastic-color);
+}
+
+.meshcore-diagram {
+    background-color: rgba(67, 160, 71, 0.05);
+    border: 2px solid var(--meshcore-color);
+}
+
+.animation-container {
+    position: relative;
+    height: 200px;
+    margin: 1.5rem 0;
+    background-color: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.node {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.source-node {
+    background-color: #4caf50;
+    color: white;
+    left: 20px;
+    top: 80px;
+}
+
+.destination-node {
+    background-color: #e91e63;
+    color: white;
+    right: 20px;
+    top: 80px;
+}
+
+.node:nth-child(2) {
+    left: 90px;
+    top: 40px;
+}
+
+.node:nth-child(3) {
+    left: 160px;
+    top: 120px;
+}
+
+.node:nth-child(4) {
+    right: 90px;
+    top: 40px;
+}
+
+.connection {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background-image: repeating-linear-gradient(0deg, transparent, transparent 19px, #ccc 20px);
+    opacity: 0.3;
+    z-index: 0;
+}
+
+.message-particle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    z-index: 1;
+}
+
+.meshtastic-particle {
+    background-color: var(--meshtastic-color);
+    box-shadow: 0 0 10px var(--meshtastic-color);
+    animation: meshtastic-routing 5s infinite;
+}
+
+.meshtastic-particle-2 {
+    background-color: var(--meshtastic-color);
+    box-shadow: 0 0 10px var(--meshtastic-color);
+    animation: meshtastic-routing-2 5s infinite;
+    animation-delay: 0.7s;
+}
+
+.meshtastic-particle-3 {
+    background-color: var(--meshtastic-color);
+    box-shadow: 0 0 10px var(--meshtastic-color);
+    animation: meshtastic-routing-3 5s infinite;
+    animation-delay: 1.4s;
+}
+
+.meshcore-particle {
+    background-color: var(--meshcore-color);
+    box-shadow: 0 0 10px var(--meshcore-color);
+    animation: meshcore-routing 5s infinite;
+}
+
+/* MeshCore phased routing animations */
+.meshcore-flood-1 {
+    background-color: var(--meshcore-color);
+    box-shadow: 0 0 10px var(--meshcore-color);
+    animation: meshcore-flood-1 15s forwards;
+    opacity: 0;
+}
+
+.meshcore-flood-2 {
+    background-color: var(--meshcore-color);
+    box-shadow: 0 0 10px var(--meshcore-color);
+    animation: meshcore-flood-2 15s forwards;
+    opacity: 0;
+}
+
+.meshcore-flood-3 {
+    background-color: var(--meshcore-color);
+    box-shadow: 0 0 10px var(--meshcore-color);
+    animation: meshcore-flood-3 15s forwards;
+    opacity: 0;
+}
+
+.meshcore-direct-packet {
+    background-color: var(--meshcore-color);
+    box-shadow: 0 0 10px var(--meshcore-color);
+    animation: meshcore-direct 15s infinite;
+    opacity: 0;
+}
+
+.meshcore-dropped-1 {
+    background-color: rgba(255, 0, 0, 0.7);
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+    animation: meshcore-dropped-1 15s forwards;
+    opacity: 0;
+}
+
+.meshcore-dropped-2 {
+    background-color: rgba(255, 0, 0, 0.7);
+    box-shadow: 0 0 10px rgba(255, 0, 0, 0.7);
+    animation: meshcore-dropped-2 15s forwards;
+    opacity: 0;
+}
+
+.route-link {
+    position: absolute;
+    height: 4px;
+    background-color: var(--meshcore-color);
+    transform-origin: left center;
+    opacity: 0;
+    z-index: 0;
+}
+
+.a-to-c {
+    left: 40px;
+    top: 100px;
+    width: 150px;
+    transform: rotate(25deg);
+    animation: link-appear 15s forwards;
+}
+
+.c-to-e {
+    left: 180px;
+    top: 140px;
+    width: 180px;
+    transform: rotate(-25deg);
+    animation: link-appear 15s forwards;
+}
+
+.phase-indicator {
+    margin-top: 15px;
+    background-color: rgba(255, 255, 255, 0.8);
+    border-radius: var(--border-radius);
+    padding: 10px;
+    border: 1px solid #ddd;
+}
+
+.phase-text {
+    padding: 5px 10px;
+    margin: 2px 0;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    opacity: 0.4;
+    transition: opacity 0.3s;
+}
+
+.phase-text.active {
+    background-color: rgba(67, 160, 71, 0.1);
+    border-left: 3px solid var(--meshcore-color);
+    opacity: 1;
+}
+
+/* Phase 1: Initial flooding animations */
+@keyframes meshcore-flood-1 {
+    /* Hidden until phase 1 starts */
+    0% { opacity: 0; }
+    /* Start at node A */
+    5% { left: 40px; top: 100px; opacity: 1; }
+    /* Go to node B */
+    10% { left: 110px; top: 60px; }
+    11% { left: 110px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    12% { left: 110px; top: 60px; transform: scale(1); }
+    /* End phase 1 */
+    25% { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes meshcore-flood-2 {
+    /* Hidden until phase 1 starts */
+    0% { opacity: 0; }
+    /* Start at node A */
+    5% { left: 40px; top: 100px; opacity: 1; }
+    /* Go to node C - this will be the successful path */
+    13% { left: 180px; top: 140px; }
+    14% { left: 180px; top: 140px; transform: scale(1.5); opacity: 0.8; }
+    15% { left: 180px; top: 140px; transform: scale(1); }
+    /* Go to node E */
+    20% { left: 340px; top: 100px; }
+    21% { left: 340px; top: 100px; transform: scale(1.5); opacity: 0.8; }
+    22% { left: 340px; top: 100px; transform: scale(1); }
+    /* End phase 1 */
+    25% { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes meshcore-flood-3 {
+    /* Hidden until phase 1 starts */
+    0% { opacity: 0; }
+    /* Start at node A */
+    5% { left: 40px; top: 100px; opacity: 1; }
+    /* Go to node C */
+    13% { left: 180px; top: 140px; }
+    14% { left: 180px; top: 140px; transform: scale(1.5); opacity: 0.8; }
+    15% { left: 180px; top: 140px; transform: scale(1); }
+    /* Go to node D */
+    18% { left: 270px; top: 60px; }
+    19% { left: 270px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    20% { left: 270px; top: 60px; transform: scale(1); }
+    /* End phase 1 */
+    25% { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+/* Phase 2: Link establishment animation */
+@keyframes link-appear {
+    /* Hidden until phase 2 starts */
+    0% { opacity: 0; }
+    24.9% { opacity: 0; }
+    /* Phase 2: Grow link from 0 to 100% width */
+    25% { opacity: 0; transform: scaleX(0); }
+    30% { opacity: 0.7; transform: scaleX(1); }
+    /* Keep link visible for the rest of the animation */
+    100% { opacity: 0.7; transform: scaleX(1); }
+}
+
+/* Phase 3: Direct routing animation */
+@keyframes meshcore-direct {
+    /* Hidden until phase 3 starts */
+    0% { opacity: 0; }
+    39.9% { opacity: 0; }
+    /* Phase 3: Direct routing along established path */
+    40% { left: 40px; top: 100px; opacity: 1; transform: scale(1); }
+    /* Go directly to node C */
+    50% { left: 180px; top: 140px; }
+    51% { left: 180px; top: 140px; transform: scale(1.5); opacity: 0.8; }
+    52% { left: 180px; top: 140px; transform: scale(1); }
+    /* Go directly to node E */
+    60% { left: 340px; top: 100px; }
+    61% { left: 340px; top: 100px; transform: scale(1.5); opacity: 0.8; }
+    62% { left: 340px; top: 100px; transform: scale(1); opacity: 1; }
+    /* Fade out */
+    65% { opacity: 0; }
+    /* Loop the direct routing after a pause */
+    75% { left: 40px; top: 100px; opacity: 1; transform: scale(1); }
+    85% { left: 180px; top: 140px; }
+    86% { left: 180px; top: 140px; transform: scale(1.5); opacity: 0.8; }
+    87% { left: 180px; top: 140px; transform: scale(1); }
+    95% { left: 340px; top: 100px; }
+    96% { left: 340px; top: 100px; transform: scale(1.5); opacity: 0.8; }
+    97% { left: 340px; top: 100px; transform: scale(1); opacity: 1; }
+    100% { opacity: 0; }
+}
+
+/* Packet dropping animations */
+@keyframes meshcore-dropped-1 {
+    /* Hidden until phase 3 starts */
+    0% { opacity: 0; }
+    39.9% { opacity: 0; }
+    /* Phase 3: Start at node A and go toward B */
+    40% { left: 40px; top: 100px; opacity: 0; }
+    45% { left: 70px; top: 80px; opacity: 1; }
+    /* Show dropped at B */
+    50% { left: 110px; top: 60px; }
+    51% { left: 110px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    52% { left: 110px; top: 60px; transform: scale(1); }
+    53% { left: 110px; top: 60px; transform: scale(0); opacity: 0; }
+    /* Loop for second attempt */
+    75% { left: 40px; top: 100px; opacity: 0; }
+    80% { left: 70px; top: 80px; opacity: 1; }
+    85% { left: 110px; top: 60px; }
+    86% { left: 110px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    87% { left: 110px; top: 60px; transform: scale(1); }
+    88% { left: 110px; top: 60px; transform: scale(0); opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes meshcore-dropped-2 {
+    /* Hidden until phase 3 starts */
+    0% { opacity: 0; }
+    39.9% { opacity: 0; }
+    /* Phase 3: Send toward D */
+    40% { left: 180px; top: 140px; opacity: 0; }
+    45% { left: 225px; top: 100px; opacity: 1; }
+    /* Show dropped at D */
+    50% { left: 270px; top: 60px; }
+    51% { left: 270px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    52% { left: 270px; top: 60px; transform: scale(1); }
+    53% { left: 270px; top: 60px; transform: scale(0); opacity: 0; }
+    /* Loop for second attempt */
+    75% { left: 180px; top: 140px; opacity: 0; }
+    80% { left: 225px; top: 100px; opacity: 1; }
+    85% { left: 270px; top: 60px; }
+    86% { left: 270px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    87% { left: 270px; top: 60px; transform: scale(1); }
+    88% { left: 270px; top: 60px; transform: scale(0); opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes meshcore-routing {
+    0% { left: 40px; top: 100px; opacity: 0; transform: scale(1); }
+    5% { opacity: 1; }
+    
+    /* Direct path through C */
+    40% { left: 180px; top: 140px; }
+    45% { left: 180px; top: 140px; transform: scale(1.5); opacity: 0.8; }
+    50% { left: 180px; top: 140px; transform: scale(1); }
+    
+    /* From C to E */
+    90% { left: 340px; top: 100px; }
+    92% { left: 340px; top: 100px; transform: scale(1.5); opacity: 0.8; }
+    95% { left: 340px; top: 100px; transform: scale(1); opacity: 1; }
+    
+    100% { opacity: 0; }
+}
+
+/* Meshtastic animations */
+@keyframes meshtastic-routing {
+    0% { left: 40px; top: 100px; opacity: 0; transform: scale(1); }
+    5% { opacity: 1; }
+    
+    /* Path: A → B → D → E */
+    15% { left: 110px; top: 60px; }
+    17% { left: 110px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    19% { left: 110px; top: 60px; transform: scale(1); }
+    
+    35% { left: 270px; top: 60px; } 
+    37% { left: 270px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    39% { left: 270px; top: 60px; transform: scale(1); }
+    
+    65% { left: 340px; top: 100px; }
+    67% { left: 340px; top: 100px; transform: scale(1.5); opacity: 0.8; }
+    69% { left: 340px; top: 100px; transform: scale(1); }
+    
+    95% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+@keyframes meshtastic-routing-2 {
+    0% { left: 40px; top: 100px; opacity: 0; transform: scale(1); }
+    5% { opacity: 1; }
+    
+    /* Path: A → C → E */
+    25% { left: 180px; top: 140px; }
+    27% { left: 180px; top: 140px; transform: scale(1.5); opacity: 0.8; }
+    29% { left: 180px; top: 140px; transform: scale(1); }
+    
+    75% { left: 340px; top: 100px; }
+    77% { left: 340px; top: 100px; transform: scale(1.5); opacity: 0.8; }
+    79% { left: 340px; top: 100px; transform: scale(1); }
+    
+    95% { opacity: 1; }
+    100% { opacity: 0; }
+}
+
+@keyframes meshtastic-routing-3 {
+    0% { left: 40px; top: 100px; opacity: 0; transform: scale(1); }
+    5% { opacity: 1; }
+    
+    /* Path: A → C → D → E */
+    20% { left: 180px; top: 140px; }
+    22% { left: 180px; top: 140px; transform: scale(1.5); opacity: 0.8; }
+    24% { left: 180px; top: 140px; transform: scale(1); }
+    
+    45% { left: 270px; top: 60px; }
+    47% { left: 270px; top: 60px; transform: scale(1.5); opacity: 0.8; }
+    49% { left: 270px; top: 60px; transform: scale(1); }
+    
+    75% { left: 340px; top: 100px; }
+    77% { left: 340px; top: 100px; transform: scale(1.5); opacity: 0.8; }
+    79% { left: 340px; top: 100px; transform: scale(1); }
+    
+    95% { opacity: 1; }
+    100% { opacity: 0; }
 }
 
 /* Responsive Adjustments */
