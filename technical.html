@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Details - Meshtastic vs MeshCore</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Meshtastic vs MeshCore</h1>
+            <p class="subtitle">Technical Routing Architecture Analysis</p>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <ul>
+                <li><a href="index.html">Overview</a></li>
+                <li><a href="technical.html" class="active">Technical Details</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section id="architecture-overview">
+            <h2>Core Routing Approaches</h2>
+            
+            <div class="card-container">
+                <div class="card wide-card">
+                    <div class="card-header meshtastic">
+                        <h3>Meshtastic Routing Architecture</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>Meshtastic utilizes a hybrid routing approach consisting of three main components:</p>
+                        <ol>
+                            <li><strong>Flooding Router</strong>: The base routing layer that implements simple flood-based message propagation.</li>
+                            <li><strong>Next Hop Router</strong>: Extends the flooding router with packet acknowledgment and retransmission.</li>
+                            <li><strong>Reliable Router</strong>: Adds additional reliability mechanisms for messages that require acknowledgments.</li>
+                        </ol>
+                        <h4>Flooding Mechanism</h4>
+                        <p>When a node receives a packet:</p>
+                        <ol>
+                            <li>It checks if it has seen this packet before (using a duplicate detection table)</li>
+                            <li>If new, it decrements the hop limit and, if not zero, rebroadcasts the packet</li>
+                            <li>All nodes in a channel rebroadcast messages regardless of the destination</li>
+                        </ol>
+                        <h4>Packet Retransmission Logic</h4>
+                        <p>Meshtastic implements retransmission for reliability:</p>
+                        <ul>
+                            <li>Intermediate nodes perform up to 2 retransmissions</li>
+                            <li>Original senders perform up to 3 retransmissions for reliable messages</li>
+                            <li>Packets are stored in a pending retransmission queue until acknowledgment or timeout</li>
+                        </ul>
+                        <h4>Congestion Control</h4>
+                        <p>Meshtastic scales intervals based on network congestion:</p>
+                        <ul>
+                            <li>Router/repeater nodes don't have their intervals scaled</li>
+                            <li>Tracker/sensor nodes get priority for position and telemetry</li>
+                            <li>Regular nodes scale back transmission as the network grows</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card wide-card">
+                    <div class="card-header meshcore">
+                        <h3>MeshCore Routing Architecture</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>MeshCore employs a more selective routing approach with distinct routing modes:</p>
+                        <ol>
+                            <li><strong>Flood Routing</strong>: Similar to Meshtastic but with priority-based retransmission</li>
+                            <li><strong>Direct Routing</strong>: Path-specific routing with selective forwarding</li>
+                            <li><strong>Zero-Hop Routing</strong>: For local broadcast without retransmission</li>
+                        </ol>
+                        <h4>Selective Packet Forwarding</h4>
+                        <p>MeshCore only forwards packets if they match specific criteria:</p>
+                        <ul>
+                            <li>Only forwards direct-routed packets if this node is the next hop</li>
+                            <li>Does not retransmit packets it has seen before</li>
+                            <li>Removes its hash from the path before rebroadcasting direct packets</li>
+                        </ul>
+                        <h4>Priority-Based Transmission</h4>
+                        <p>MeshCore uses a priority system for transmissions:</p>
+                        <ul>
+                            <li>Direct messages get highest priority (0)</li>
+                            <li>Regular messages get medium priority (1)</li>
+                            <li>Path discovery packets get lower priority (2)</li>
+                            <li>Advertisements get lowest priority (3)</li>
+                        </ul>
+                        <h4>Congestion Mitigation</h4>
+                        <p>MeshCore employs several congestion mitigation techniques:</p>
+                        <ul>
+                            <li><strong>Airtime Budget</strong>: Nodes limit to approximately 33% airtime utilization</li>
+                            <li><strong>Randomized Delays</strong>: Prevents collision storms after regional events</li>
+                            <li><strong>Path-Based Priority</strong>: Messages closer to source get higher priority</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="disaster-analysis">
+            <h2>Network Capacity Analysis for Large-Scale Disasters</h2>
+            
+            <div class="info-box">
+                <div class="info-icon">
+                    <i class="fas fa-info-circle"></i>
+                </div>
+                <div class="info-content">
+                    <p>This analysis examines how each platform would perform in a large-scale disaster scenario with approximately 50,000 people trying to communicate across a mesh of 1,000 nodes in 300 km².</p>
+                </div>
+            </div>
+            
+            <div class="two-columns">
+                <div class="column">
+                    <h3 class="meshtastic-header">Meshtastic Network Capacity</h3>
+                    <div class="technical-section">
+                        <h4>Broadcast Storm Risk</h4>
+                        <p>With 50,000 active users, Meshtastic's flood-based routing would create significant congestion:</p>
+                        <ul>
+                            <li>Each message potentially propagates to every node within hop limits</li>
+                            <li>With default settings, congestion scaling would help but might not be sufficient</li>
+                        </ul>
+                        
+                        <h4>Resource Utilization</h4>
+                        <ul>
+                            <li>Packet pool size is limited and could be quickly exhausted</li>
+                            <li>Under heavy load, oldest packets would be dropped from queues</li>
+                        </ul>
+                        
+                        <h4>Congestion Control</h4>
+                        <ul>
+                            <li>Meshtastic implements hop limits (typically 3-7 hops)</li>
+                            <li>Role-based prioritization helps critical nodes like ROUTER maintain function</li>
+                            <li>Less effective at discarding unnecessary retransmissions</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="column">
+                    <h3 class="meshcore-header">MeshCore Network Capacity</h3>
+                    <div class="technical-section">
+                        <h4>Selective Forwarding</h4>
+                        <p>Only forwards packets that are specifically destined via that node:</p>
+                        <ul>
+                            <li>Significantly reduces network-wide traffic compared to flooding</li>
+                            <li>Well-suited for dense node deployments</li>
+                        </ul>
+                        
+                        <h4>Prioritization System</h4>
+                        <ul>
+                            <li>Assigns higher priority to direct messages (pri=0) over flood messages (pri=1-3)</li>
+                            <li>Assigns decreasing priority as messages propagate further from source</li>
+                        </ul>
+                        
+                        <h4>Airtime Management</h4>
+                        <ul>
+                            <li>Limits each node to approximately 33% airtime utilization</li>
+                            <li>Implements randomized retransmission delays to prevent collisions</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="performance-predictions">
+            <h2>Performance Predictions for 300km² with 1K Nodes</h2>
+            
+            <div class="two-columns">
+                <div class="column">
+                    <h3 class="meshtastic-header">Meshtastic Performance</h3>
+                    <div class="technical-section">
+                        <h4>Message Propagation</h4>
+                        <ul>
+                            <li>With configured hop limits, messages would reach approximately 7-10km radius</li>
+                            <li>Nodes would need to be positioned within 1-2km of each other for reliable coverage</li>
+                            <li>Would require strategic node placement for full coverage</li>
+                        </ul>
+                        
+                        <h4>Broadcast Efficiency</h4>
+                        <ul>
+                            <li>High redundancy ensures messages reach destinations if any path exists</li>
+                            <li>At 50K users sending messages, network would likely experience significant congestion</li>
+                            <li>Congestion scaling would increase intervals between broadcast messages</li>
+                        </ul>
+                        
+                        <h4>Scalability Concerns</h4>
+                        <ul>
+                            <li>Duplicate detection tables are limited in size</li>
+                            <li>As traffic increases, ability to track duplicates decreases</li>
+                            <li>Likely to experience significant packet loss at peak usage</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="column">
+                    <h3 class="meshcore-header">MeshCore Performance</h3>
+                    <div class="technical-section">
+                        <h4>Message Propagation</h4>
+                        <ul>
+                            <li>Direct routing requires established paths</li>
+                            <li>Initial network formation would rely on announce packets</li>
+                            <li>With 1K strategically placed nodes, path discovery may take time but would be more efficient</li>
+                        </ul>
+                        
+                        <h4>Traffic Management</h4>
+                        <ul>
+                            <li>Selective forwarding means significantly less network congestion</li>
+                            <li>Room servers could act as regional message collection points</li>
+                            <li>Airtime limiting prevents any single node from overwhelming the network</li>
+                        </ul>
+                        
+                        <h4>Scalability Strengths</h4>
+                        <ul>
+                            <li>Priority system gives preference to direct routed packets</li>
+                            <li>Random delays prevent collision storms after regional events</li>
+                            <li>Decreasing priority with distance prevents distant nodes from consuming bandwidth</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="optimization">
+            <h2>Optimizations for Disaster Scenarios</h2>
+            
+            <div class="two-columns">
+                <div class="column">
+                    <h3 class="meshtastic-header">Optimizing Meshtastic</h3>
+                    <div class="technical-section">
+                        <ol>
+                            <li><strong>Increase Router Density</strong>: Deploy more router/repeater nodes with strategic placement</li>
+                            <li><strong>Reduce Default Hop Limit</strong>: Consider reducing from default 3-7 to 2-3 hops</li>
+                            <li><strong>Strengthen Congestion Scaling</strong>: More aggressive scaling at high node counts</li>
+                            <li><strong>Implement Priority-Based Queuing</strong>: Critical messages should have transmission priority</li>
+                        </ol>
+                    </div>
+                </div>
+                
+                <div class="column">
+                    <h3 class="meshcore-header">Optimizing MeshCore</h3>
+                    <div class="technical-section">
+                        <ol>
+                            <li><strong>Pre-established Room Servers</strong>: Deploy room servers at strategic locations</li>
+                            <li><strong>Optimize Announce Intervals</strong>: Reduce announce frequency in high-density areas</li>
+                            <li><strong>Increase Path Discovery Proactivity</strong>: More aggressive path discovery for critical routes</li>
+                            <li><strong>Adjust Airtime Budget</strong>: Consider reducing below 33% in high-density areas</li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+        </section>
+        
+        <section id="conclusion">
+            <h2>Technical Conclusion</h2>
+            <p>In a large-scale disaster scenario with 50,000 users across 1,000 nodes in 300 km²:</p>
+            <p><strong>Meshtastic</strong> would provide more immediate message propagation through its aggressive flooding mechanism, but would likely suffer from significant congestion and packet loss. It would perform best in the immediate aftermath when node count is lower and redundancy is critical.</p>
+            <p><strong>MeshCore</strong> would offer more sustainable communication over time through its selective routing and prioritization schemes. While initial path discovery might take longer, the network would maintain higher throughput once paths are established, especially with strategic room server placement.</p>
+            <p>For maximum resilience, a hybrid deployment could leverage Meshtastic's flooding for critical emergency messages and MeshCore's selective routing for sustained communication channels.</p>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2023 Mesh Networking Comparison. This is for informational purposes only.</p>
+            <div class="footer-links">
+                <a href="index.html">Overview</a>
+                <a href="technical.html">Technical Details</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html> 

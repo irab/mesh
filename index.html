@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meshtastic vs MeshCore Comparison</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>Meshtastic vs MeshCore</h1>
+            <p class="subtitle">Comparing LoRa Mesh Networking Solutions</p>
+        </div>
+    </header>
+
+    <nav>
+        <div class="container">
+            <ul>
+                <li><a href="#overview" class="active">Overview</a></li>
+                <li><a href="#features">Features</a></li>
+                <li><a href="#differences">Key Differences</a></li>
+                <li><a href="#disaster">Disaster Scenarios</a></li>
+                <li><a href="#use-cases">Use Cases</a></li>
+                <li><a href="technical.html">Technical Details</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main class="container">
+        <section id="overview">
+            <h2>Overview</h2>
+            <div class="card-container">
+                <div class="card">
+                    <div class="card-header meshtastic">
+                        <h3>Meshtastic</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>Meshtastic is an established open-source LoRa mesh networking project focused on creating a decentralized communication platform that works without relying on internet or cellular infrastructure. It enables text messaging, location sharing, and telemetry over mesh networks.</p>
+                        <div class="card-links">
+                            <a href="https://meshtastic.org/" target="_blank" class="button">Official Website <i class="fas fa-external-link-alt"></i></a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header meshcore">
+                        <h3>MeshCore</h3>
+                    </div>
+                    <div class="card-body">
+                        <p>MeshCore is a lightweight, portable C++ library for multi-hop packet routing in embedded projects using LoRa and other packet radios. It aims to provide a balanced approach to mesh networking with a focus on simplicity and scalability for custom embedded solutions.</p>
+                        <div class="card-links">
+                            <a href="https://meshcore.co.uk/" target="_blank" class="button">Official Website <i class="fas fa-external-link-alt"></i></a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="features">
+            <h2>Feature Comparison</h2>
+            <div class="table-responsive">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Feature</th>
+                            <th>Meshtastic</th>
+                            <th>MeshCore</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>License</strong></td>
+                            <td>Open Source</td>
+                            <td>Open Source (MIT License)</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Architecture</strong></td>
+                            <td>Focused on complete mesh networking solution</td>
+                            <td>Lightweight library for packet routing</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Target Use</strong></td>
+                            <td>General-purpose mesh communication</td>
+                            <td>Custom embedded solutions</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Routing Method</strong></td>
+                            <td>Flood-based broadcasting with hop limits</td>
+                            <td>Selective forwarding with priority-based routing</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Power Consumption</strong></td>
+                            <td>Optimized for low power</td>
+                            <td>Designed for low power consumption</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Firmware Types</strong></td>
+                            <td>Unified firmware</td>
+                            <td>Four distinct firmware types</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Network Structure</strong></td>
+                            <td>Channel-based with encryption</td>
+                            <td>Route-based with encryption</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Premium Features</strong></td>
+                            <td>Fully open-source</td>
+                            <td>Some premium features in T-Deck firmware and mobile apps</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Congestion Control</strong></td>
+                            <td>Role-based scaling and hop limits</td>
+                            <td>Priority-based transmission and airtime budgeting</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            <p class="cta-message">See the <a href="technical.html">Technical Details</a> page for more in-depth information.</p>
+        </section>
+
+        <section id="differences">
+            <h2>Key Differences</h2>
+            
+            <div class="accordion">
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3>Routing Architecture</h3>
+                        <span class="accordion-icon">+</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="comparison-container">
+                            <div class="comparison-item">
+                                <h4>Meshtastic</h4>
+                                <p>Uses a hybrid approach with three layers: Flooding Router (base), Next Hop Router (for acknowledgments), and Reliable Router (for messages requiring guaranteed delivery). Messages propagate through the network with high redundancy but potentially higher congestion.</p>
+                            </div>
+                            <div class="comparison-item">
+                                <h4>MeshCore</h4>
+                                <p>Implements three distinct routing modes: Flood Routing (with priority), Direct Routing (path-specific), and Zero-Hop Routing (local broadcast). Focuses on selective forwarding to reduce network load.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3>Packet Forwarding</h3>
+                        <span class="accordion-icon">+</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="comparison-container">
+                            <div class="comparison-item">
+                                <h4>Meshtastic</h4>
+                                <p>When a radio receives a packet, it checks if it has seen the packet before. If not, it will rebroadcast it. Each rebroadcast decreases the hop limit by one, and packets with a hop limit of zero are not rebroadcast.</p>
+                            </div>
+                            <div class="comparison-item">
+                                <h4>MeshCore</h4>
+                                <p>Uses a more selective approach where repeaters don't forward every packet they receive, but only those that need to be routed to specific destinations. This aims for a more efficient use of bandwidth.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3>Network Structure</h3>
+                        <span class="accordion-icon">+</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="comparison-container">
+                            <div class="comparison-item">
+                                <h4>Meshtastic</h4>
+                                <p>Uses channels with shared encryption keys. All nodes in a radio mesh retransmit messages regardless of channel settings.</p>
+                            </div>
+                            <div class="comparison-item">
+                                <h4>MeshCore</h4>
+                                <p>Uses routes for message delivery with public key encryption. Offers room servers that function like BBS systems for persistent message storage.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3>Congestion Management</h3>
+                        <span class="accordion-icon">+</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="comparison-container">
+                            <div class="comparison-item">
+                                <h4>Meshtastic</h4>
+                                <p>Scales message intervals based on network size, with special handling for router/repeater nodes and trackers/sensors. Uses message deduplication and hop limits to control congestion.</p>
+                            </div>
+                            <div class="comparison-item">
+                                <h4>MeshCore</h4>
+                                <p>Employs an airtime budget system (limiting nodes to ~33% of available airtime), combined with priority-based transmission and randomized delays to prevent collision storms.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="accordion-item">
+                    <div class="accordion-header">
+                        <h3>Client Architecture</h3>
+                        <span class="accordion-icon">+</span>
+                    </div>
+                    <div class="accordion-content">
+                        <div class="comparison-container">
+                            <div class="comparison-item">
+                                <h4>Meshtastic</h4>
+                                <p>Uses a unified firmware approach across different hardware platforms.</p>
+                            </div>
+                            <div class="comparison-item">
+                                <h4>MeshCore</h4>
+                                <p>Offers four distinct firmware types:</p>
+                                <ol>
+                                    <li>BLE Companion (connects over Bluetooth)</li>
+                                    <li>USB Serial Companion (connects over USB)</li>
+                                    <li>Repeater (extends network range)</li>
+                                    <li>Room Server (stores message history)</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="disaster">
+            <h2>Disaster Scenario Performance</h2>
+            <p class="context">In a large-scale disaster scenario with many users (tens of thousands) across a wide area (hundreds of km²):</p>
+            
+            <div class="card-container">
+                <div class="card">
+                    <div class="card-header meshtastic">
+                        <h3>Meshtastic Strengths</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>Immediate message propagation without requiring path establishment</li>
+                            <li>Higher probability of message delivery through redundant paths</li>
+                            <li>Better for the initial emergency phase when reliable communication is critical</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header meshtastic-alt">
+                        <h3>Meshtastic Challenges</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>Risk of broadcast storms and significant congestion with many users</li>
+                            <li>Limited ability to prioritize critical messages during high traffic</li>
+                            <li>Potential for significant packet loss as network scales</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card-container">
+                <div class="card">
+                    <div class="card-header meshcore">
+                        <h3>MeshCore Strengths</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>More efficient bandwidth usage through selective routing</li>
+                            <li>Priority system helps ensure critical messages get through</li>
+                            <li>Room servers provide persistent messaging points for affected communities</li>
+                            <li>Better performance over sustained usage periods</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header meshcore-alt">
+                        <h3>MeshCore Challenges</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>Initial path discovery requires time to establish efficient routes</li>
+                            <li>Less redundancy could result in some message delivery failures</li>
+                            <li>Requires more strategic node placement for optimal performance</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="use-cases">
+            <h2>Use Case Suitability</h2>
+            
+            <div class="card-container">
+                <div class="card wide-card">
+                    <div class="card-header meshtastic">
+                        <h3>Meshtastic is better for:</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>Users wanting a fully open-source solution</li>
+                            <li>Larger mesh networks with many nodes</li>
+                            <li>Users who want an established platform with extensive documentation</li>
+                            <li>Applications requiring extensive telemetry and sensor integration</li>
+                            <li>Scenarios requiring immediate message propagation without path establishment</li>
+                            <li>Emergency situations where message redundancy is more important than network efficiency</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <div class="card wide-card">
+                    <div class="card-header meshcore">
+                        <h3>MeshCore is better for:</h3>
+                    </div>
+                    <div class="card-body">
+                        <ul>
+                            <li>Custom embedded solutions requiring lightweight implementation</li>
+                            <li>Networks needing more selective message routing for bandwidth efficiency</li>
+                            <li>Use cases benefiting from the room server concept for persistent message storage</li>
+                            <li>Applications where T-Deck hardware integration is important</li>
+                            <li>Dense node deployments where network congestion is a concern</li>
+                            <li>Long-term communication scenarios requiring sustainable bandwidth usage</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="conclusion">
+            <h2>Conclusion</h2>
+            <p>Both Meshtastic and MeshCore provide off-grid mesh communication solutions using LoRa technology, but they take different approaches. Meshtastic offers a more established ecosystem with full open-source implementation and better immediate delivery through aggressive flooding, while MeshCore provides a lighter-weight alternative with more efficient routing and some unique features like room servers for persistent storage.</p>
+            <p>For disaster scenarios, Meshtastic may perform better in the immediate aftermath when redundancy is critical, while MeshCore could provide more sustainable communication over time as the network stabilizes. The ideal solution might combine elements of both approaches or deploy them in complementary roles based on the specific requirements of the deployment area and expected user density.</p>
+        </section>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2023 Mesh Networking Comparison. This is for informational purposes only.</p>
+            <div class="footer-links">
+                <a href="index.html">Overview</a>
+                <a href="technical.html">Technical Details</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html> 
