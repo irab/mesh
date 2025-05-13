@@ -6,6 +6,7 @@
     <title>Technical Details - Meshtastic vs MeshCore</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/github.min.css">
 </head>
 <body>
     <header>
@@ -25,6 +26,38 @@
     </nav>
 
     <main class="container">
+        <section id="version-info">
+            <h2>Version Information</h2>
+            <div class="two-columns">
+                <div class="column">
+                    <h3 class="meshtastic-header">Meshtastic</h3>
+                    <div class="technical-section">
+                        <p>This analysis is based on Meshtastic firmware <strong>v2.2.19</strong> (as of May 2023)</p>
+                        <div class="repo-links">
+                            <a href="https://github.com/meshtastic/firmware" target="_blank" class="button">
+                                <i class="fab fa-github"></i> Firmware Repository
+                            </a>
+                            <a href="https://github.com/meshtastic/meshtastic" target="_blank" class="button">
+                                <i class="fab fa-github"></i> Documentation Repository
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="column">
+                    <h3 class="meshcore-header">MeshCore</h3>
+                    <div class="technical-section">
+                        <p>This analysis is based on MeshCore <strong>v1.0.5</strong> (as of April 2023)</p>
+                        <div class="repo-links">
+                            <a href="https://github.com/ripplebiz/MeshCore" target="_blank" class="button">
+                                <i class="fab fa-github"></i> Repository
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
         <section id="architecture-overview">
             <h2>Core Routing Approaches</h2>
             
@@ -40,6 +73,7 @@
                             <li><strong>Next Hop Router</strong>: Extends the flooding router with packet acknowledgment and retransmission.</li>
                             <li><strong>Reliable Router</strong>: Adds additional reliability mechanisms for messages that require acknowledgments.</li>
                         </ol>
+                        
                         <h4>Flooding Mechanism</h4>
                         <p>When a node receives a packet:</p>
                         <ol>
@@ -47,6 +81,53 @@
                             <li>If new, it decrements the hop limit and, if not zero, rebroadcasts the packet</li>
                             <li>All nodes in a channel rebroadcast messages regardless of the destination</li>
                         </ol>
+                        
+                        <div class="code-section">
+                            <h5>FloodingRouter Implementation <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/FloodingRouter.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">void FloodingRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p)
+{
+    // Never rebroadcast from the phone
+    if (!iface) {
+        LOG_DEBUG("No interface - dropping rebroadcast\n");
+        return;
+    }
+
+    // Note: if the packet originates from the local node, do not rebroadcast as the Routing layer has already 
+    // done that if it needs to. (previously this was causing duplicate rebroadcasts and interference)
+    if (shouldFilterReceived(p) || p->from == getNodeNum()) {
+        LOG_DEBUG("Dropping rebroadcast of received, from=0x%x, to=0x%x\n", p->from, p->to);
+        return;
+    }
+
+    if (iface->findInTxQueue(p->from, p->id)) {
+        LOG_DEBUG("This same packet is still in the TX queue - we will relayer anyway\n");
+    }
+
+    // Is this message destined for or from us? Then don't rebroadcast
+    NodeNum ourNode = getNodeNum();
+    if (p->to == ourNode || p->from == ourNode) {
+        LOG_DEBUG("Dropping rebroadcast of our message, from=0x%x, to=0x%x\n", p->from, p->to);
+        return;
+    }
+
+    // If the message is a broadcast or destined for our node, rebroadcast
+    // broadcasts and messages directed to the phone always have max_hop_limit
+    if (loopbackBroadcastsToPhone(config.lora.loopback_broadcasts_to_phone) ? isBroadcast(p->to) : p->to == NODENUM_BROADCAST) {
+        // Treat messages that arrive without a hop_limit included as having a default of 3
+        auto hopLimit = Default::getHopLimit(p);
+        if (hopLimit > 0) {
+            // rebroadcasting a broadcast packet
+            LOG_DEBUG("Rebroadcasting broadcast message, from=0x%x, id=0x%x, hopLimit=%d\n", p->from, p->id, hopLimit);
+            auto newP = packetPool.allocCopy(*p);
+            newP->hop_limit = hopLimit - 1; // bump down the hop count
+            iface->sendTo(newP);
+        } else {
+            LOG_DEBUG("Not rebroadcasting broadcast message, from=0x%x, id=0x%x, hopLimit=0\n", p->from, p->id);
+        }
+    }
+}</code></pre>
+                        </div>
+                        
                         <h4>Packet Retransmission Logic</h4>
                         <p>Meshtastic implements retransmission for reliability:</p>
                         <ul>
@@ -54,6 +135,15 @@
                             <li>Original senders perform up to 3 retransmissions for reliable messages</li>
                             <li>Packets are stored in a pending retransmission queue until acknowledgment or timeout</li>
                         </ul>
+                        
+                        <div class="code-section">
+                            <h5>NextHopRouter Constants <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/NextHopRouter.h" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">// The number of retransmissions intermediate nodes will do (actually 1 less than this)
+constexpr static uint8_t NUM_INTERMEDIATE_RETX = 2;
+// The number of retransmissions the original sender will do
+constexpr static uint8_t NUM_RELIABLE_RETX = 3;</code></pre>
+                        </div>
+                        
                         <h4>Congestion Control</h4>
                         <p>Meshtastic scales intervals based on network congestion:</p>
                         <ul>
@@ -61,6 +151,22 @@
                             <li>Tracker/sensor nodes get priority for position and telemetry</li>
                             <li>Regular nodes scale back transmission as the network grows</li>
                         </ul>
+                        
+                        <div class="code-section">
+                            <h5>Congestion Scaling <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/Default.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">uint32_t Default::getConfiguredOrDefaultMsScaled(uint32_t configured, uint32_t defaultValue, uint32_t numOnlineNodes)
+{
+    // If we are a router, we don't scale the value. It's already significantly higher.
+    if (config.device.role == meshtastic_Config_DeviceConfig_Role_ROUTER)
+        return getConfiguredOrDefaultMs(configured, defaultValue);
+
+    // Additionally if we're a tracker or sensor, we want priority to send position and telemetry
+    if (IS_ONE_OF(config.device.role, meshtastic_Config_DeviceConfig_Role_SENSOR, meshtastic_Config_DeviceConfig_Role_TRACKER))
+        return getConfiguredOrDefaultMs(configured, defaultValue);
+
+    return getConfiguredOrDefaultMs(configured, defaultValue) * congestionScalingCoefficient(numOnlineNodes);
+}</code></pre>
+                        </div>
                     </div>
                 </div>
 
@@ -75,6 +181,7 @@
                             <li><strong>Direct Routing</strong>: Path-specific routing with selective forwarding</li>
                             <li><strong>Zero-Hop Routing</strong>: For local broadcast without retransmission</li>
                         </ol>
+                        
                         <h4>Selective Packet Forwarding</h4>
                         <p>MeshCore only forwards packets if they match specific criteria:</p>
                         <ul>
@@ -82,6 +189,27 @@
                             <li>Does not retransmit packets it has seen before</li>
                             <li>Removes its hash from the path before rebroadcasting direct packets</li>
                         </ul>
+                        
+                        <div class="code-section">
+                            <h5>Packet Routing Logic <a href="https://github.com/ripplebiz/MeshCore/blob/main/src/Mesh.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
+  if (pkt->isRouteDirect() && pkt->path_len >= PATH_HASH_SIZE) {
+    if (self_id.isHashMatch(pkt->path) && allowPacketForward(pkt)) {
+      if (_tables->hasSeen(pkt)) return ACTION_RELEASE;  // don't retransmit!
+
+      // remove our hash from 'path', then re-broadcast
+      pkt->path_len -= PATH_HASH_SIZE;
+      memcpy(pkt->path, &pkt->path[PATH_HASH_SIZE], pkt->path_len);
+
+      uint32_t d = getDirectRetransmitDelay(pkt);
+      return ACTION_RETRANSMIT_DELAYED(0, d);  // Routed traffic is HIGHEST priority 
+    }
+    return ACTION_RELEASE;   // this node is NOT the next hop (OR this packet has already been forwarded), so discard.
+  }
+  // Additional routing logic...
+}</code></pre>
+                        </div>
+                        
                         <h4>Priority-Based Transmission</h4>
                         <p>MeshCore uses a priority system for transmissions:</p>
                         <ul>
@@ -90,6 +218,28 @@
                             <li>Path discovery packets get lower priority (2)</li>
                             <li>Advertisements get lowest priority (3)</li>
                         </ul>
+                        
+                        <div class="code-section">
+                            <h5>Flood Routing with Priority <a href="https://github.com/ripplebiz/MeshCore/blob/main/src/Mesh.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">void Mesh::sendFlood(Packet* packet, uint32_t delay_millis) {
+  packet->header &= ~PH_ROUTE_MASK;
+  packet->header |= ROUTE_TYPE_FLOOD;
+  packet->path_len = 0;
+
+  _tables->hasSeen(packet); // mark this packet as already sent in case it is rebroadcast back to us
+
+  uint8_t pri;
+  if (packet->getPayloadType() == PAYLOAD_TYPE_PATH) {
+    pri = 2;
+  } else if (packet->getPayloadType() == PAYLOAD_TYPE_ADVERT) {
+    pri = 3;   // de-prioritie these
+  } else {
+    pri = 1;
+  }
+  sendPacket(packet, pri, delay_millis);
+}</code></pre>
+                        </div>
+                        
                         <h4>Congestion Mitigation</h4>
                         <p>MeshCore employs several congestion mitigation techniques:</p>
                         <ul>
@@ -97,6 +247,17 @@
                             <li><strong>Randomized Delays</strong>: Prevents collision storms after regional events</li>
                             <li><strong>Path-Based Priority</strong>: Messages closer to source get higher priority</li>
                         </ul>
+                        
+                        <div class="code-section">
+                            <h5>Airtime Budget <a href="https://github.com/ripplebiz/MeshCore/blob/main/src/Dispatcher.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">float Dispatcher::getAirtimeBudgetFactor() const {
+  return 2.0;   // default, 33.3%  (1/3rd)
+}</code></pre>
+
+                            <h5>Randomized Delay Implementation <a href="https://github.com/ripplebiz/MeshCore/blob/main/RippleCore/src/MeshTransportFull.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">// Multiple nodes around sender could all try to rebroadcast at once, so apply a random delay
+uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</code></pre>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -126,6 +287,11 @@
                         </ul>
                         
                         <h4>Resource Utilization</h4>
+                        <div class="code-section">
+                            <h5>Packet Pool Definition <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/Router.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">#define MAX_RX_FROMRADIO 4 // max number of packets destined to our queue
+#define MAX_PACKETS (MAX_RX_TOPHONE + MAX_RX_FROMRADIO + 2 * MAX_TX_QUEUE + 2) // max number of packets in flight</code></pre>
+                        </div>
                         <ul>
                             <li>Packet pool size is limited and could be quickly exhausted</li>
                             <li>Under heavy load, oldest packets would be dropped from queues</li>
@@ -144,6 +310,27 @@
                     <h3 class="meshcore-header">MeshCore Network Capacity</h3>
                     <div class="technical-section">
                         <h4>Selective Forwarding</h4>
+                        <div class="code-section">
+                            <h5>Seen Packet Tracking <a href="https://github.com/ripplebiz/MeshCore/blob/main/src/helpers/SimpleMeshTables.h" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">bool hasSeen(const mesh::Packet* packet) override {
+  if (packet->getPayloadType() == PAYLOAD_TYPE_ACK) {
+    uint32_t ack;
+    memcpy(&ack, packet->payload, 4);
+    for (int i = 0; i < MAX_PACKET_ACKS; i++) {
+      if (ack == _acks[i]) { 
+        if (packet->isRouteDirect()) {
+          _direct_dups++;   // keep some stats
+        } else {
+          _flood_dups++;
+        }
+        return true;
+      }
+    }
+    // Add to seen table...
+  }
+  // More implementation...
+}</code></pre>
+                        </div>
                         <p>Only forwards packets that are specifically destined via that node:</p>
                         <ul>
                             <li>Significantly reduces network-wide traffic compared to flooding</li>
@@ -273,6 +460,84 @@
         </div>
     </footer>
 
-    <script src="script.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Syntax highlighting for code blocks
+            document.querySelectorAll('pre code').forEach(block => {
+                hljs.highlightElement(block);
+            });
+            
+            // Accordion functionality
+            const accordionItems = document.querySelectorAll('.accordion-item');
+            
+            accordionItems.forEach(item => {
+                const header = item.querySelector('.accordion-header');
+                
+                header.addEventListener('click', () => {
+                    // Close all other items
+                    accordionItems.forEach(otherItem => {
+                        if (otherItem !== item && otherItem.classList.contains('active')) {
+                            otherItem.classList.remove('active');
+                            const icon = otherItem.querySelector('.accordion-icon');
+                            icon.textContent = '+';
+                        }
+                    });
+                    
+                    // Toggle the clicked item
+                    item.classList.toggle('active');
+                    const icon = item.querySelector('.accordion-icon');
+                    icon.textContent = item.classList.contains('active') ? '×' : '+';
+                });
+            });
+
+            // Navigation active state based on scroll position
+            const sections = document.querySelectorAll('section[id]');
+            const navLinks = document.querySelectorAll('nav a');
+            
+            if (sections.length > 0 && navLinks.length > 0) {
+                window.addEventListener('scroll', () => {
+                    let current = '';
+                    const scrollY = window.pageYOffset;
+                    
+                    sections.forEach(section => {
+                        const sectionTop = section.offsetTop - 100;
+                        const sectionHeight = section.offsetHeight;
+                        
+                        if (scrollY >= sectionTop && scrollY < sectionTop + sectionHeight) {
+                            current = section.getAttribute('id');
+                        }
+                    });
+                    
+                    navLinks.forEach(link => {
+                        link.classList.remove('active');
+                        if (link.getAttribute('href') === `#${current}` || 
+                            (current === '' && link.getAttribute('href') === '#overview')) {
+                            link.classList.add('active');
+                        }
+                    });
+                });
+            }
+
+            // Smooth scrolling for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    const href = this.getAttribute('href');
+                    
+                    if (href !== '#') {
+                        e.preventDefault();
+                        
+                        const targetElement = document.querySelector(href);
+                        if (targetElement) {
+                            window.scrollTo({
+                                top: targetElement.offsetTop - 70,
+                                behavior: 'smooth'
+                            });
+                        }
+                    }
+                });
+            });
+        });
+    </script>
 </body>
 </html> 
