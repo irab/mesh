@@ -294,47 +294,37 @@ tr:hover {
 }
 
 .accordion-item {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-}
-
-.accordion-item:last-child {
-    border-bottom: none;
+    border: 1px solid #e0e0e0;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    overflow: hidden;
 }
 
 .accordion-header {
-    padding: 1.2rem;
+    background-color: #f5f5f5;
+    padding: 15px 20px;
+    cursor: pointer;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    cursor: pointer;
-    background-color: rgba(0, 0, 0, 0.02);
-    transition: background-color var(--transition-speed);
-}
-
-.accordion-header:hover {
-    background-color: rgba(0, 0, 0, 0.05);
-}
-
-.accordion-header h3 {
-    margin: 0;
-    font-size: 1.1rem;
+    font-weight: 600;
 }
 
 .accordion-icon {
-    font-size: 1.5rem;
-    font-weight: bold;
+    font-size: 20px;
+    transition: transform 0.3s;
 }
 
 .accordion-content {
-    padding: 0;
     max-height: 0;
     overflow: hidden;
-    transition: max-height var(--transition-speed), padding var(--transition-speed);
+    transition: max-height 0.3s ease-out;
+    padding: 0 20px;
 }
 
 .accordion-item.active .accordion-content {
-    padding: 1.2rem;
     max-height: 1000px;
+    padding: 20px;
 }
 
 .accordion-item.active .accordion-icon {
@@ -430,6 +420,77 @@ tr:hover {
     text-align: center;
 }
 
+/* Version Comparison Styles */
+
+.version-box {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 30px;
+    margin: 30px 0;
+}
+
+.version-badge {
+    position: relative;
+    padding: 30px 40px;
+    border-radius: 8px;
+    text-align: center;
+    min-width: 180px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+}
+
+.version-badge h3 {
+    margin: 0;
+    font-size: 1.5rem;
+}
+
+.version-badge.meshtastic {
+    background-color: rgba(0, 123, 255, 0.1);
+    border: 2px solid #007bff;
+}
+
+.version-badge.meshcore {
+    background-color: rgba(255, 107, 0, 0.1);
+    border: 2px solid #ff6b00;
+}
+
+.version-tag {
+    position: absolute;
+    top: -12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #fff;
+    padding: 2px 12px;
+    border-radius: 20px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.version-badge.meshtastic .version-tag {
+    color: #007bff;
+    border: 2px solid #007bff;
+}
+
+.version-badge.meshcore .version-tag {
+    color: #ff6b00;
+    border: 2px solid #ff6b00;
+}
+
+h3.vs {
+    font-size: 1.8rem;
+    color: #555;
+    margin: 0;
+}
+
+.version-description {
+    text-align: center;
+    max-width: 800px;
+    margin: 0 auto 30px;
+    line-height: 1.6;
+    font-size: 1.1rem;
+}
+
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     header h1 {
@@ -456,6 +517,15 @@ tr:hover {
     
     .card, .comparison-item {
         min-width: 100%;
+    }
+    
+    .version-box {
+        flex-direction: column;
+        gap: 50px;
+    }
+    
+    h3.vs {
+        transform: rotate(90deg);
     }
 }
 
