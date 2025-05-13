@@ -381,6 +381,10 @@
                     <div class="legend-color" style="background-color: rgba(76, 175, 80, 0.1); border: 1px dashed #4caf50;"></div>
                     <span>Node Transmission Range</span>
                 </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #dc3545;"></div>
+                    <span>Red Flash: Duplicate Message Discarded</span>
+                </div>
             </div>
             
             <div class="controls">
@@ -427,7 +431,7 @@
             </div>
             
             <div class="phase-caption" id="phase-caption">
-                Meshtastic Flooding: Radio signals propagate through all nodes within range, which rebroadcast to maximize delivery probability.
+                Meshtastic Flooding: Radio signals propagate through all nodes within range, which rebroadcast once per message to maximize delivery probability.
             </div>
             
             <div class="performance-metrics">
@@ -679,29 +683,50 @@
             function generateRandomTopology() {
                 // Define nodes with random positions and ranges
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: getRandomRange(320, 480) },
-                    { id: 'B', name: 'Node B', type: 'node', range: getRandomRange(240, 400) },
-                    { id: 'C', name: 'Node C', type: 'node', range: getRandomRange(280, 440) },
-                    { id: 'D', name: 'Node D', type: 'node', range: getRandomRange(200, 360) },
-                    { id: 'E', name: 'Node E', type: 'node', range: getRandomRange(320, 480) },
-                    { id: 'F', name: 'Node F', type: 'node', range: getRandomRange(280, 400) },
-                    { id: 'G', name: 'Node G', type: 'node', range: getRandomRange(240, 360) },
-                    { id: 'H', name: 'Node H', type: 'node', range: getRandomRange(280, 440) },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: getRandomRange(320, 480) }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: getRandomRange(160, 240) }
                 ];
                 
-                // Assign random positions
-                nodes.forEach(node => {
-                    const pos = randomPosition();
-                    node.x = pos.x;
-                    node.y = pos.y;
+                // Add regular nodes (original + more nodes for density)
+                const regularNodeCount = 88; // Approximately 10x the original minus source/destination
+                for (let i = 0; i < regularNodeCount; i++) {
+                    const nodeId = i < 7 ? String.fromCharCode(66 + i) : 'N' + (i - 6); // B,C,D,E,F,G,H, then N1, N2, etc.
+                    nodes.push({ 
+                        id: nodeId, 
+                        name: 'Node ' + nodeId, 
+                        type: 'node', 
+                        range: getRandomRange(140, 220) 
+                    });
+                }
+                
+                // Add destination node
+                nodes.push({ id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: getRandomRange(160, 240) });
+                
+                // Assign random positions with grid-like distribution for better coverage
+                const gridSize = Math.ceil(Math.sqrt(nodes.length));
+                const cellWidth = width / gridSize;
+                const cellHeight = height / gridSize;
+                
+                nodes.forEach((node, index) => {
+                    // Calculate grid position
+                    const gridX = index % gridSize;
+                    const gridY = Math.floor(index / gridSize);
+                    
+                    // Add some randomness within the cell
+                    const jitterX = (Math.random() - 0.5) * cellWidth * 0.7;
+                    const jitterY = (Math.random() - 0.5) * cellHeight * 0.7;
+                    
+                    node.x = (gridX + 0.5) * cellWidth + jitterX;
+                    node.y = (gridY + 0.5) * cellHeight + jitterY;
                 });
                 
-                // Place A and Z at strategic positions
-                nodes[0].x = width * 0.15; // A at left side
+                // Override specific node positions for source and destination
+                // Place A at left side
+                nodes[0].x = width * 0.05;
                 nodes[0].y = height * 0.5;
-                nodes[8].x = width * 0.85; // Z at right side
-                nodes[8].y = height * 0.5;
+                
+                // Place Z at right side
+                nodes[nodes.length - 1].x = width * 0.95;
+                nodes[nodes.length - 1].y = height * 0.5;
                 
                 // Create links based on range
                 const links = [];
@@ -723,38 +748,52 @@
             // Function to generate dense topology
             function generateDenseTopology() {
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 600 },
-                    { id: 'B', name: 'Node B', type: 'node', range: 560 },
-                    { id: 'C', name: 'Node C', type: 'node', range: 560 },
-                    { id: 'D', name: 'Node D', type: 'node', range: 560 },
-                    { id: 'E', name: 'Node E', type: 'node', range: 560 },
-                    { id: 'F', name: 'Node F', type: 'node', range: 560 },
-                    { id: 'G', name: 'Node G', type: 'node', range: 560 },
-                    { id: 'H', name: 'Node H', type: 'node', range: 560 },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 600 }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 300 }
                 ];
                 
-                // Position in a more evenly distributed pattern
-                nodes[0].x = width * 0.15; // A at left side
-                nodes[0].y = height * 0.5;
-                nodes[1].x = width * 0.3;
-                nodes[1].y = height * 0.3;
-                nodes[2].x = width * 0.3;
-                nodes[2].y = height * 0.7;
-                nodes[3].x = width * 0.45;
-                nodes[3].y = height * 0.2;
-                nodes[4].x = width * 0.45;
-                nodes[4].y = height * 0.5;
-                nodes[5].x = width * 0.45;
-                nodes[5].y = height * 0.8;
-                nodes[6].x = width * 0.6;
-                nodes[6].y = height * 0.3;
-                nodes[7].x = width * 0.6;
-                nodes[7].y = height * 0.7;
-                nodes[8].x = width * 0.85; // Z at right side
-                nodes[8].y = height * 0.5;
+                // Add regular nodes (original + more nodes for density)
+                const regularNodeCount = 88; // Approximately 10x the original minus source/destination
+                for (let i = 0; i < regularNodeCount; i++) {
+                    const nodeId = i < 7 ? String.fromCharCode(66 + i) : 'N' + (i - 6); // B,C,D,E,F,G,H, then N1, N2, etc.
+                    nodes.push({ 
+                        id: nodeId, 
+                        name: 'Node ' + nodeId, 
+                        type: 'node', 
+                        range: 280 
+                    });
+                }
                 
-                // Create links - dense means every node can reach many others
+                // Add destination node
+                nodes.push({ id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 300 });
+                
+                // Position in a grid pattern with clustering for density
+                const gridSize = Math.ceil(Math.sqrt(nodes.length * 0.7)); // Use 70% of full grid for clustering
+                const cellWidth = width / gridSize;
+                const cellHeight = height / gridSize;
+                
+                nodes.forEach((node, index) => {
+                    if (index === 0) return; // Skip source node A
+                    if (index === nodes.length - 1) return; // Skip destination node Z
+                    
+                    // Calculate grid position
+                    const gridX = (index - 1) % gridSize;
+                    const gridY = Math.floor((index - 1) / gridSize);
+                    
+                    // Add some randomness within the cell, but keep it dense
+                    const jitterX = (Math.random() - 0.5) * cellWidth * 0.5;
+                    const jitterY = (Math.random() - 0.5) * cellHeight * 0.5;
+                    
+                    node.x = (width * 0.2) + (gridX + 0.5) * cellWidth * 0.8 + jitterX;
+                    node.y = (height * 0.1) + (gridY + 0.5) * cellHeight + jitterY;
+                });
+                
+                // Place A and Z at strategic positions
+                nodes[0].x = width * 0.05; // A at left side
+                nodes[0].y = height * 0.5;
+                nodes[nodes.length - 1].x = width * 0.95; // Z at right side
+                nodes[nodes.length - 1].y = height * 0.5;
+                
+                // Create links based on range - dense means every node can reach many others
                 const links = [];
                 for (let i = 0; i < nodes.length; i++) {
                     for (let j = i + 1; j < nodes.length; j++) {
@@ -774,38 +813,56 @@
             // Function to generate sparse topology
             function generateSparseTopology() {
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 280 },
-                    { id: 'B', name: 'Node B', type: 'node', range: 240 },
-                    { id: 'C', name: 'Node C', type: 'node', range: 240 },
-                    { id: 'D', name: 'Node D', type: 'node', range: 240 },
-                    { id: 'E', name: 'Node E', type: 'node', range: 240 },
-                    { id: 'F', name: 'Node F', type: 'node', range: 240 },
-                    { id: 'G', name: 'Node G', type: 'node', range: 240 },
-                    { id: 'H', name: 'Node H', type: 'node', range: 240 },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 280 }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 140 }
                 ];
                 
-                // Position to create sparse network
-                nodes[0].x = width * 0.15; // A at left side
-                nodes[0].y = height * 0.5;
-                nodes[1].x = width * 0.3;
-                nodes[1].y = height * 0.3;
-                nodes[2].x = width * 0.3;
-                nodes[2].y = height * 0.7;
-                nodes[3].x = width * 0.45;
-                nodes[3].y = height * 0.25;
-                nodes[4].x = width * 0.5;
-                nodes[4].y = height * 0.5;
-                nodes[5].x = width * 0.45;
-                nodes[5].y = height * 0.75;
-                nodes[6].x = width * 0.65;
-                nodes[6].y = height * 0.35;
-                nodes[7].x = width * 0.7;
-                nodes[7].y = height * 0.65;
-                nodes[8].x = width * 0.85; // Z at right side
-                nodes[8].y = height * 0.5;
+                // Add regular nodes (original + more nodes for density)
+                const regularNodeCount = 88; // Approximately 10x the original minus source/destination
+                for (let i = 0; i < regularNodeCount; i++) {
+                    const nodeId = i < 7 ? String.fromCharCode(66 + i) : 'N' + (i - 6); // B,C,D,E,F,G,H, then N1, N2, etc.
+                    nodes.push({ 
+                        id: nodeId, 
+                        name: 'Node ' + nodeId, 
+                        type: 'node', 
+                        range: 120
+                    });
+                }
                 
-                // Create links - much fewer links than dense network
+                // Add destination node
+                nodes.push({ id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 140 });
+                
+                // Position to create sparse network - spread nodes widely
+                const gridSize = Math.ceil(Math.sqrt(nodes.length * 1.5)); // Use 150% of normal grid to create sparsity
+                const cellWidth = width / gridSize;
+                const cellHeight = height / gridSize;
+                
+                nodes.forEach((node, index) => {
+                    if (index === 0) return; // Skip source node A
+                    if (index === nodes.length - 1) return; // Skip destination node Z
+                    
+                    // Calculate grid position
+                    const gridX = (index - 1) % gridSize;
+                    const gridY = Math.floor((index - 1) / gridSize);
+                    
+                    // Add significant randomness to create sparsity
+                    const jitterX = (Math.random() - 0.5) * cellWidth * 0.9;
+                    const jitterY = (Math.random() - 0.5) * cellHeight * 0.9;
+                    
+                    node.x = (gridX + 0.5) * cellWidth + jitterX;
+                    node.y = (gridY + 0.5) * cellHeight + jitterY;
+                    
+                    // Ensure nodes stay within bounds
+                    node.x = Math.max(20, Math.min(width - 20, node.x));
+                    node.y = Math.max(20, Math.min(height - 20, node.y));
+                });
+                
+                // Place A and Z at strategic positions
+                nodes[0].x = width * 0.05; // A at left side
+                nodes[0].y = height * 0.5;
+                nodes[nodes.length - 1].x = width * 0.95; // Z at right side
+                nodes[nodes.length - 1].y = height * 0.5;
+                
+                // Create links based on range - sparse means fewer links
                 const links = [];
                 for (let i = 0; i < nodes.length; i++) {
                     for (let j = i + 1; j < nodes.length; j++) {
@@ -825,40 +882,93 @@
             // Function to generate linear topology
             function generateLinearTopology() {
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 240 },
-                    { id: 'B', name: 'Node B', type: 'node', range: 240 },
-                    { id: 'C', name: 'Node C', type: 'node', range: 240 },
-                    { id: 'D', name: 'Node D', type: 'node', range: 240 },
-                    { id: 'E', name: 'Node E', type: 'node', range: 240 },
-                    { id: 'F', name: 'Node F', type: 'node', range: 240 },
-                    { id: 'G', name: 'Node G', type: 'node', range: 240 },
-                    { id: 'H', name: 'Node H', type: 'node', range: 240 },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 240 }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 120 }
                 ];
                 
-                // Position in a line
-                const step = width * 0.7 / (nodes.length - 1);
-                nodes.forEach((node, index) => {
-                    node.x = width * 0.15 + (step * index);
-                    node.y = height * 0.5 + (Math.random() * 50 - 25); // Slight vertical variation
-                });
+                // Add regular nodes (original + more nodes for density)
+                const regularNodeCount = 88; // Approximately 10x the original minus source/destination
+                for (let i = 0; i < regularNodeCount; i++) {
+                    const nodeId = i < 7 ? String.fromCharCode(66 + i) : 'N' + (i - 6); // B,C,D,E,F,G,H, then N1, N2, etc.
+                    nodes.push({ 
+                        id: nodeId, 
+                        name: 'Node ' + nodeId, 
+                        type: 'node', 
+                        range: 120
+                    });
+                }
                 
-                // Create links only between adjacent nodes
+                // Add destination node
+                nodes.push({ id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 120 });
+                
+                // Position in a meandering line with some branches
+                // Main path nodes
+                const mainPathNodes = 40; // About half the nodes form the main path
+                const step = width * 0.9 / (mainPathNodes - 1);
+                
+                for (let i = 0; i < mainPathNodes; i++) {
+                    const nodeIndex = i === 0 ? 0 : (i === mainPathNodes - 1 ? nodes.length - 1 : i);
+                    nodes[nodeIndex].x = width * 0.05 + (step * i);
+                    nodes[nodeIndex].y = height * 0.5 + (Math.sin(i * 0.5) * height * 0.2); // Sinusoidal path
+                }
+                
+                // Position the rest of the nodes as branches off the main path
+                for (let i = 1; i < nodes.length - 1; i++) {
+                    // Skip nodes already positioned in the main path
+                    if (i < mainPathNodes && i !== nodes.length - 1) continue;
+                    
+                    // Choose a random node from the main path to branch from
+                    const branchFrom = Math.floor(Math.random() * mainPathNodes);
+                    
+                    // Position node as a branch with random angle and distance
+                    const angle = Math.random() * Math.PI * 2;
+                    const distance = 40 + Math.random() * 80; // Between 40-120px from parent
+                    
+                    nodes[i].x = nodes[branchFrom === 0 ? 0 : (branchFrom === mainPathNodes - 1 ? nodes.length - 1 : branchFrom)].x + Math.cos(angle) * distance;
+                    nodes[i].y = nodes[branchFrom === 0 ? 0 : (branchFrom === mainPathNodes - 1 ? nodes.length - 1 : branchFrom)].y + Math.sin(angle) * distance;
+                    
+                    // Ensure nodes stay within bounds
+                    nodes[i].x = Math.max(20, Math.min(width - 20, nodes[i].x));
+                    nodes[i].y = Math.max(20, Math.min(height - 20, nodes[i].y));
+                }
+                
+                // Ensure source and destination are at the ends
+                nodes[0].x = width * 0.05;
+                nodes[0].y = height * 0.5;
+                nodes[nodes.length - 1].x = width * 0.95;
+                nodes[nodes.length - 1].y = height * 0.5;
+                
+                // Create links - for linear, we primarily connect adjacent nodes plus some random cross links
                 const links = [];
-                for (let i = 0; i < nodes.length - 1; i++) {
+                
+                // Connect main path
+                for (let i = 0; i < mainPathNodes - 1; i++) {
+                    const sourceIndex = i === 0 ? 0 : i;
+                    const targetIndex = i === mainPathNodes - 2 ? nodes.length - 1 : i + 1;
+                    
                     links.push({
-                        source: nodes[i].id,
-                        target: nodes[i + 1].id,
+                        source: nodes[sourceIndex].id,
+                        target: nodes[targetIndex].id,
                         distance: 1
                     });
-                    
-                    // Add a few cross links for slightly more complexity
-                    if (i < nodes.length - 2 && Math.random() > 0.7) {
-                        links.push({
-                            source: nodes[i].id,
-                            target: nodes[i + 2].id,
-                            distance: 2
-                        });
+                }
+                
+                // Add links based on range for the rest of the network
+                for (let i = 0; i < nodes.length; i++) {
+                    for (let j = i + 1; j < nodes.length; j++) {
+                        // Skip if already connected through main path
+                        if (links.some(link => 
+                            (link.source === nodes[i].id && link.target === nodes[j].id) || 
+                            (link.source === nodes[j].id && link.target === nodes[i].id))) {
+                            continue;
+                        }
+                        
+                        if (isInRange(nodes[i], nodes[j])) {
+                            links.push({
+                                source: nodes[i].id,
+                                target: nodes[j].id,
+                                distance: 1
+                            });
+                        }
                     }
                 }
                 
@@ -868,57 +978,101 @@
             // Function to generate star topology
             function generateStarTopology() {
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 800 },
-                    { id: 'B', name: 'Node B', type: 'node', range: 240 },
-                    { id: 'C', name: 'Node C', type: 'node', range: 240 },
-                    { id: 'D', name: 'Node D', type: 'node', range: 240 },
-                    { id: 'E', name: 'Node E (Hub)', type: 'node', range: 800 },
-                    { id: 'F', name: 'Node F', type: 'node', range: 240 },
-                    { id: 'G', name: 'Node G', type: 'node', range: 240 },
-                    { id: 'H', name: 'Node H', type: 'node', range: 240 },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 240 }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 400 }
                 ];
                 
-                // Position with E (hub) in the center
-                nodes[4].x = width * 0.5; // E at center
-                nodes[4].y = height * 0.5;
-                
-                // Position other nodes around E
-                const radius = Math.min(width, height) * 0.35;
-                for (let i = 0; i < nodes.length; i++) {
-                    if (i !== 4) { // Skip E (hub)
-                        const angle = (i * (2 * Math.PI / (nodes.length - 1))) - Math.PI/2;
-                        nodes[i].x = nodes[4].x + radius * Math.cos(angle);
-                        nodes[i].y = nodes[4].y + radius * Math.sin(angle);
-                    }
+                // Add regular nodes (original + more nodes for density)
+                const regularNodeCount = 88; // Approximately 10x the original minus source/destination
+                for (let i = 0; i < regularNodeCount; i++) {
+                    const nodeId = i < 7 ? String.fromCharCode(66 + i) : 'N' + (i - 6); // B,C,D,E,F,G,H, then N1, N2, etc.
+                    nodes.push({ 
+                        id: nodeId, 
+                        name: 'Node ' + nodeId, 
+                        type: 'node', 
+                        range: 120
+                    });
                 }
                 
-                // Create links - everything connects to the center
-                const links = [];
-                for (let i = 0; i < nodes.length; i++) {
-                    if (i !== 4) { // Skip E (hub)
-                        links.push({
-                            source: nodes[4].id, // E (hub)
-                            target: nodes[i].id,
-                            distance: 1
-                        });
-                    }
-                }
+                // Add destination node
+                nodes.push({ id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 120 });
                 
-                // Add a few peripheral connections
-                for (let i = 0; i < 3; i++) {
-                    const randomNodeIndex1 = Math.floor(Math.random() * nodes.length);
-                    let randomNodeIndex2;
-                    do {
-                        randomNodeIndex2 = Math.floor(Math.random() * nodes.length);
-                    } while (randomNodeIndex1 === randomNodeIndex2 || randomNodeIndex1 === 4 || randomNodeIndex2 === 4);
+                // Select a hub node (E will be our hub)
+                const hubIndex = 4; // Index of node E
+                nodes[hubIndex].name = 'Node E (Hub)';
+                nodes[hubIndex].range = 400; // Increase range for the hub
+                
+                // Position with hub (E) in the center
+                nodes[hubIndex].x = width * 0.5; // E at center
+                nodes[hubIndex].y = height * 0.5;
+                
+                // Position source (A) and destination (Z) at opposite sides
+                nodes[0].x = width * 0.05; // A at left
+                nodes[0].y = height * 0.5;
+                nodes[nodes.length - 1].x = width * 0.95; // Z at right
+                nodes[nodes.length - 1].y = height * 0.5;
+                
+                // Position other nodes in concentric circles around the hub
+                const clusters = 5; // Number of clusters
+                const nodesPerCluster = Math.ceil((nodes.length - 3) / clusters); // Nodes per cluster, excluding A, E, and Z
+                
+                let nodeIndex = 1;
+                for (let cluster = 0; cluster < clusters; cluster++) {
+                    const radius = (cluster + 1) * (Math.min(width, height) * 0.35 / clusters);
+                    const nodesInThisCluster = Math.min(nodesPerCluster, nodes.length - 3 - (cluster * nodesPerCluster));
                     
-                    if (isInRange(nodes[randomNodeIndex1], nodes[randomNodeIndex2])) {
-                        links.push({
-                            source: nodes[randomNodeIndex1].id,
-                            target: nodes[randomNodeIndex2].id,
-                            distance: 1
-                        });
+                    for (let i = 0; i < nodesInThisCluster; i++) {
+                        if (nodeIndex === hubIndex) {
+                            nodeIndex++; // Skip the hub node
+                        }
+                        
+                        if (nodeIndex >= nodes.length - 1) break; // Skip Z (last node)
+                        
+                        const angle = (i * (2 * Math.PI / nodesInThisCluster));
+                        nodes[nodeIndex].x = nodes[hubIndex].x + radius * Math.cos(angle);
+                        nodes[nodeIndex].y = nodes[hubIndex].y + radius * Math.sin(angle);
+                        
+                        nodeIndex++;
+                    }
+                }
+                
+                // Create links - everything connects to the center and nearby nodes in same cluster
+                const links = [];
+                
+                // Connect hub to source and destination
+                links.push({
+                    source: nodes[0].id, // A (source)
+                    target: nodes[hubIndex].id, // E (hub)
+                    distance: 1
+                });
+                
+                links.push({
+                    source: nodes[hubIndex].id, // E (hub)
+                    target: nodes[nodes.length - 1].id, // Z (destination)
+                    distance: 1
+                });
+                
+                // Connect all nodes to the hub and to nearby nodes based on range
+                for (let i = 0; i < nodes.length; i++) {
+                    if (i !== hubIndex && i !== 0 && i !== nodes.length - 1) {
+                        // Connect to hub if in range
+                        if (isInRange(nodes[i], nodes[hubIndex])) {
+                            links.push({
+                                source: nodes[hubIndex].id,
+                                target: nodes[i].id,
+                                distance: 1
+                            });
+                        }
+                        
+                        // Connect to nearby nodes based on range
+                        for (let j = i + 1; j < nodes.length; j++) {
+                            if (j !== hubIndex && isInRange(nodes[i], nodes[j])) {
+                                links.push({
+                                    source: nodes[i].id,
+                                    target: nodes[j].id,
+                                    distance: 1
+                                });
+                            }
+                        }
                     }
                 }
                 
@@ -967,10 +1121,20 @@
                     .attr('class', d => `network-node node-${d.id}`)
                     .attr('cx', d => d.x)
                     .attr('cy', d => d.y)
-                    .attr('r', 25)
+                    .attr('r', d => {
+                        // Make source and destination nodes larger
+                        if (d.type === 'source' || d.type === 'destination') return 16;
+                        // Make hub nodes slightly larger 
+                        if (d.id === 'E' || d.name.includes('Hub')) return 14;
+                        // Make original nodes (B-H) slightly larger
+                        if (d.id.length === 1) return 12;
+                        // Make all other nodes smaller
+                        return 8;
+                    })
                     .attr('fill', d => {
                         if (d.type === 'source') return '#4caf50';
                         if (d.type === 'destination') return '#e91e63';
+                        if (d.id === 'E' || d.name.includes('Hub')) return '#ff9800';
                         return '#ddd';
                     })
                     .attr('stroke', '#fff')
@@ -989,14 +1153,19 @@
                             .style('opacity', 0);
                     });
                 
-                // Add node labels
+                // Add node labels only for source, destination and original nodes
                 const nodeLabels = networkGroup.selectAll('.node-label')
-                    .data(nodes)
+                    .data(nodes.filter(d => d.id.length === 1)) // Only show labels for A-Z nodes
                     .enter()
                     .append('text')
                     .attr('class', 'node-label')
                     .attr('x', d => d.x)
                     .attr('y', d => d.y)
+                    .attr('font-size', d => {
+                        if (d.type === 'source' || d.type === 'destination') return '14px';
+                        if (d.id === 'E' || d.name.includes('Hub')) return '12px';
+                        return '10px';
+                    })
                     .text(d => d.id);
             }
             
@@ -1201,27 +1370,62 @@
                     nodeMap[node.id] = node;
                 });
                 
-                // Start timing for delivery time metric
-                const startTime = Date.now();
+                // Set to track nodes that have already broadcast during discovery
+                const hasNodeBroadcast = new Set(['A']);
                 let totalPackets = 0;
                 let hasReachedDestination = false;
                 
-                // Create a flood wave from source node
-                createFloodWave(nodes[0], 'meshcore-wave');
+                // Start timing for delivery time metric
+                const startTime = Date.now();
                 
-                // Get all links from A (first wave)
+                // Constants to control flooding visualization
+                const MAX_CONCURRENT_ANIMATIONS = 25; // Limit number of concurrent animations
+                const MAX_FLOOD_DEPTH = 7; // Limit flood depth for path discovery
+                let activeAnimations = 0;
+                const animationQueue = [];
+                
+                // Create a flood wave from source node (only for key nodes)
+                if (nodeMap['A'].id.length === 1) {
+                    createFloodWave(nodeMap['A'], 'meshcore-wave');
+                }
+                
+                // First wave: from A to all connected nodes
+                // Get all links from A
                 const aLinks = links.filter(link => link.source === 'A' || link.target === 'A')
                     .map(link => {
                         const targetId = link.source === 'A' ? link.target : link.source;
                         return { sourceId: 'A', targetId };
                     });
                 
-                // First wave: from A to all connected nodes
-                const firstWavePackets = aLinks.map(link => {
+                // Limit first wave if needed
+                let firstWaveLinks = aLinks;
+                if (aLinks.length > 8) {
+                    // Find direct link to Z if it exists
+                    const directToZ = aLinks.find(link => link.targetId === 'Z');
+                    
+                    // Prioritize original nodes (B-H) and randomly select others
+                    const originalNodes = aLinks.filter(link => link.targetId.length === 1 && link.targetId !== 'Z');
+                    const otherNodes = aLinks.filter(link => link.targetId.length > 1 && link.targetId !== 'Z');
+                    
+                    // Shuffle and select subset of other nodes
+                    const shuffled = otherNodes.sort(() => 0.5 - Math.random());
+                    const selected = shuffled.slice(0, Math.min(7 - originalNodes.length, otherNodes.length));
+                    
+                    // Combine prioritized links
+                    firstWaveLinks = [
+                        ...(directToZ ? [directToZ] : []),
+                        ...originalNodes,
+                        ...selected
+                    ].slice(0, 8); // Ensure we don't exceed 8 links
+                }
+                
+                // First wave: from A to connected nodes
+                const firstWavePackets = firstWaveLinks.map(link => {
                     const packet = createPacket(nodeMap['A'], nodeMap[link.targetId], 'packet-discovery');
                     
                     // Increment packet count
                     totalPackets++;
+                    activeAnimations++;
                     updateMetrics({ packetsSent: totalPackets });
                     
                     return { packet, link };
@@ -1229,106 +1433,211 @@
                 
                 // Animate first wave
                 firstWavePackets.forEach(({ packet, link }, index) => {
-                    animatePacket(packet, nodeMap['A'], nodeMap[link.targetId], 500, 500, function() {
-                        // If this is the last packet, continue with the second wave
+                    animatePacket(packet, nodeMap['A'], nodeMap[link.targetId], 500, 300 + (index * 50), function() {
+                        // Decrement active animations
+                        activeAnimations--;
+                        
+                        // Mark this node as having broadcast
+                        hasNodeBroadcast.add(link.targetId);
+                        
+                        // Check if this packet reached Z
+                        if (link.targetId === 'Z' && !hasReachedDestination) {
+                            hasReachedDestination = true;
+                            flashDestinationNode();
+                        }
+                        
+                        // If this is the last packet of the first wave, start the second wave
                         if (index === firstWavePackets.length - 1) {
-                            animateSecondWave();
+                            setTimeout(function() {
+                                animateSecondWave(firstWaveLinks);
+                            }, 300);
                         }
                     });
                 });
                 
-                function animateSecondWave() {
+                function animateSecondWave(firstWaveLinks) {
                     // Get second wave links (from all nodes except A and Z)
                     const secondWaveLinks = [];
-                    firstWavePackets.forEach(({ link }) => {
+                    firstWaveLinks.forEach(link => {
                         if (link.targetId !== 'Z') { // Skip if we already reached Z
                             const nodeLinks = links.filter(l => 
                                 (l.source === link.targetId || l.target === link.targetId) && 
                                 l.source !== 'A' && l.target !== 'A');
                             
-                            nodeLinks.forEach(nodeLink => {
+                            // Limit links per node
+                            let nodeLinkSubset = nodeLinks;
+                            if (nodeLinks.length > 5) {
+                                // Prioritize links to original nodes and Z
+                                const linkToZ = nodeLinks.find(nl => 
+                                    (nl.source === link.targetId && nl.target === 'Z') || 
+                                    (nl.target === link.targetId && nl.source === 'Z'));
+                                
+                                const originalNodeLinks = nodeLinks.filter(nl => {
+                                    const targetId = nl.source === link.targetId ? nl.target : nl.source;
+                                    return targetId.length === 1 && targetId !== 'A' && targetId !== 'Z';
+                                });
+                                
+                                const otherLinks = nodeLinks.filter(nl => {
+                                    const targetId = nl.source === link.targetId ? nl.target : nl.source;
+                                    return targetId.length > 1 && targetId !== 'Z';
+                                });
+                                
+                                // Shuffle and select subset
+                                const shuffled = otherLinks.sort(() => 0.5 - Math.random());
+                                const selected = shuffled.slice(0, Math.min(4 - originalNodeLinks.length, otherLinks.length));
+                                
+                                nodeLinkSubset = [
+                                    ...(linkToZ ? [linkToZ] : []),
+                                    ...originalNodeLinks,
+                                    ...selected
+                                ].slice(0, 5);
+                            }
+                            
+                            nodeLinkSubset.forEach(nodeLink => {
                                 const targetId = nodeLink.source === link.targetId ? nodeLink.target : nodeLink.source;
-                                // Don't go backwards
+                                // Don't go backwards and only include if target hasn't broadcast yet
                                 if (targetId !== 'A') {
-                                    secondWaveLinks.push({ sourceId: link.targetId, targetId });
+                                    if (hasNodeBroadcast.has(targetId)) {
+                                        // Schedule a dropped message effect with slight delay
+                                        setTimeout(() => {
+                                            showDroppedMessageEffect(nodeMap[targetId]);
+                                        }, 300 + Math.random() * 200);
+                                    } else {
+                                        secondWaveLinks.push({ 
+                                            sourceId: link.targetId, 
+                                            targetId,
+                                            depth: 2
+                                        });
+                                    }
                                 }
                             });
                         }
                     });
                     
                     // Create and animate second wave packets
-                    const secondWavePackets = secondWaveLinks.map(link => {
-                        const packet = createPacket(nodeMap[link.sourceId], nodeMap[link.targetId], 'packet-discovery');
+                    // Handle maximum concurrent animations
+                    let processedLinks = 0;
+                    const processNextBatch = () => {
+                        const currentBatch = secondWaveLinks.slice(
+                            processedLinks, 
+                            processedLinks + Math.min(MAX_CONCURRENT_ANIMATIONS, secondWaveLinks.length - processedLinks)
+                        );
                         
-                        // Increment packet count
-                        totalPackets++;
-                        updateMetrics({ packetsSent: totalPackets });
+                        if (currentBatch.length === 0) {
+                            // All second wave packets processed, start third wave
+                            setTimeout(() => animateThirdWave(secondWaveLinks), 800);
+                            return;
+                        }
                         
-                        return { packet, link };
-                    });
-                    
-                    secondWavePackets.forEach(({ packet, link }, index) => {
-                        animatePacket(packet, nodeMap[link.sourceId], nodeMap[link.targetId], 500, 500, function() {
-                            // If this is the last packet, continue with the third wave
-                            if (index === secondWavePackets.length - 1) {
-                                // Continue with a third wave to show ongoing flooding
-                                setTimeout(function() {
-                                    animateThirdWave(secondWaveLinks);
-                                }, 500);
+                        processedLinks += currentBatch.length;
+                        
+                        // Create and animate packets for this batch
+                        currentBatch.forEach((link, batchIndex) => {
+                            // Skip if target has already broadcast
+                            if (hasNodeBroadcast.has(link.targetId)) {
+                                // Show dropped message effect
+                                setTimeout(() => {
+                                    showDroppedMessageEffect(nodeMap[link.targetId]);
+                                }, 200 + (batchIndex * 30));
+                                
+                                // If this is the last packet and we're at the end of all batches
+                                if (batchIndex === currentBatch.length - 1 && processedLinks >= secondWaveLinks.length) {
+                                    // Wait to ensure animations complete, then move to next phase
+                                    setTimeout(() => {
+                                        if (animationQueue.length === 0) {
+                                            animateThirdWave(secondWaveLinks);
+                                        }
+                                    }, 800);
+                                }
+                                return;
                             }
                             
-                            // If this packet reached Z, mark it but don't stop the simulation
-                            if (link.targetId === 'Z' && !hasReachedDestination) {
-                                hasReachedDestination = true;
+                            // Create visual packet with slight delay
+                            setTimeout(() => {
+                                if (activeAnimations >= MAX_CONCURRENT_ANIMATIONS) {
+                                    // Queue for later if too many animations
+                                    animationQueue.push(link);
+                                    return;
+                                }
                                 
-                                // Flash destination node to indicate receipt
-                                networkGroup.selectAll('.network-node')
-                                    .filter(d => d.id === 'Z')
-                                    .transition()
-                                    .duration(300)
-                                    .attr('r', 35)
-                                    .transition()
-                                    .duration(300)
-                                    .attr('r', 25);
+                                const packet = createPacket(nodeMap[link.sourceId], nodeMap[link.targetId], 'packet-discovery');
+                                
+                                // Increment counters
+                                totalPackets++;
+                                activeAnimations++;
+                                updateMetrics({ packetsSent: totalPackets });
+                                
+                                animatePacket(packet, nodeMap[link.sourceId], nodeMap[link.targetId], 500, 0, function() {
+                                    // Mark this node as having broadcast
+                                    hasNodeBroadcast.add(link.targetId);
                                     
-                                // Update caption to indicate destination reached but flooding continues
-                                document.getElementById('phase-caption').innerText = 
-                                    'MeshCore Path Discovery: Destination reached, but flooding continues throughout the network.';
-                            }
+                                    // Decrement animation counter
+                                    activeAnimations--;
+                                    
+                                    // Check if we can process from queue
+                                    if (animationQueue.length > 0 && activeAnimations < MAX_CONCURRENT_ANIMATIONS / 2) {
+                                        processQueuedAnimations();
+                                    }
+                                    
+                                    // If this packet reached Z and we haven't marked it yet
+                                    if (link.targetId === 'Z' && !hasReachedDestination) {
+                                        hasReachedDestination = true;
+                                        flashDestinationNode();
+                                    }
+                                    
+                                    // If this is the last packet in the batch and we're at the end of all batches
+                                    if (batchIndex === currentBatch.length - 1 && processedLinks >= secondWaveLinks.length) {
+                                        // Wait to ensure animations complete, then move to next phase
+                                        setTimeout(() => {
+                                            if (animationQueue.length === 0) {
+                                                animateThirdWave(secondWaveLinks);
+                                            }
+                                        }, 800);
+                                    }
+                                });
+                            }, batchIndex * 30); // Stagger packet creation slightly
                         });
-                    });
+                        
+                        // Process next batch if there are more links
+                        if (processedLinks < secondWaveLinks.length) {
+                            setTimeout(processNextBatch, 300);
+                        }
+                    };
+                    
+                    // Start processing second wave in batches
+                    processNextBatch();
                 }
                 
                 function animateThirdWave(previousLinks) {
-                    // Track visited links to avoid duplicates
-                    const visitedLinkKeys = new Set();
-                    previousLinks.forEach(link => {
-                        visitedLinkKeys.add(`${link.sourceId}-${link.targetId}`);
-                        visitedLinkKeys.add(`${link.targetId}-${link.sourceId}`);
-                    });
-                    
                     // Get third wave links
                     const thirdWaveLinks = [];
                     previousLinks.forEach(prevLink => {
-                        // Skip if source is Z (destination reached)
-                        if (prevLink.targetId !== 'Z') { 
-                            const nodeLinks = links.filter(l => 
-                                (l.source === prevLink.targetId || l.target === prevLink.targetId) && 
-                                l.source !== prevLink.sourceId && l.target !== prevLink.sourceId);
-                            
-                            nodeLinks.forEach(nodeLink => {
-                                const targetId = nodeLink.source === prevLink.targetId ? nodeLink.target : nodeLink.source;
-                                // Avoid creating duplicate links
-                                const linkKey = `${prevLink.targetId}-${targetId}`;
-                                const reverseLinkKey = `${targetId}-${prevLink.targetId}`;
-                                
-                                if (!visitedLinkKeys.has(linkKey) && !visitedLinkKeys.has(reverseLinkKey)) {
-                                    visitedLinkKeys.add(linkKey);
-                                    visitedLinkKeys.add(reverseLinkKey);
-                                    thirdWaveLinks.push({ sourceId: prevLink.targetId, targetId });
-                                }
-                            });
-                        }
+                        // Skip if source is Z (destination reached) or if we've reached our max depth
+                        if (prevLink.depth >= MAX_FLOOD_DEPTH) return;
+                        
+                        const nodeLinks = links.filter(l => 
+                            (l.source === prevLink.targetId || l.target === prevLink.targetId) && 
+                            l.source !== prevLink.sourceId && l.target !== prevLink.sourceId);
+                        
+                        // Limit links per node
+                        let nodeLinkSubset = nodeLinks.slice(0, 3); // Only take up to 3 links per node for third wave
+                        
+                        nodeLinkSubset.forEach(nodeLink => {
+                            const targetId = nodeLink.source === prevLink.targetId ? nodeLink.target : nodeLink.source;
+                            // Only add if the target hasn't broadcast yet
+                            if (hasNodeBroadcast.has(targetId)) {
+                                // Schedule a dropped message effect with slight delay
+                                setTimeout(() => {
+                                    showDroppedMessageEffect(nodeMap[targetId]);
+                                }, 300 + Math.random() * 200);
+                            } else {
+                                thirdWaveLinks.push({ 
+                                    sourceId: prevLink.targetId, 
+                                    targetId, 
+                                    depth: prevLink.depth + 1 
+                                });
+                            }
+                        });
                     });
                     
                     // If no more links to traverse, finish the flooding phase
@@ -1337,44 +1646,158 @@
                         return;
                     }
                     
-                    // Create and animate third wave packets
-                    const thirdWavePackets = thirdWaveLinks.map(link => {
+                    // Process third wave in batches like second wave
+                    let processedLinks = 0;
+                    const processNextBatch = () => {
+                        const currentBatch = thirdWaveLinks.slice(
+                            processedLinks, 
+                            processedLinks + Math.min(MAX_CONCURRENT_ANIMATIONS, thirdWaveLinks.length - processedLinks)
+                        );
+                        
+                        if (currentBatch.length === 0) {
+                            // All third wave packets processed
+                            setTimeout(finishFloodingPhase, 800);
+                            return;
+                        }
+                        
+                        processedLinks += currentBatch.length;
+                        
+                        // Create and animate packets for this batch
+                        currentBatch.forEach((link, batchIndex) => {
+                            // Skip if target has already broadcast
+                            if (hasNodeBroadcast.has(link.targetId)) {
+                                // Show dropped message effect
+                                setTimeout(() => {
+                                    showDroppedMessageEffect(nodeMap[link.targetId]);
+                                }, 200 + (batchIndex * 30));
+                                
+                                // If this is the last packet and we're at the end of all batches
+                                if (batchIndex === currentBatch.length - 1 && processedLinks >= thirdWaveLinks.length) {
+                                    // Wait to ensure animations complete, then finish
+                                    setTimeout(() => {
+                                        if (animationQueue.length === 0) {
+                                            finishFloodingPhase();
+                                        }
+                                    }, 800);
+                                }
+                                return;
+                            }
+                            
+                            // Create visual packet with slight delay
+                            setTimeout(() => {
+                                if (activeAnimations >= MAX_CONCURRENT_ANIMATIONS) {
+                                    // Queue for later if too many animations
+                                    animationQueue.push(link);
+                                    return;
+                                }
+                                
+                                const packet = createPacket(nodeMap[link.sourceId], nodeMap[link.targetId], 'packet-discovery');
+                                
+                                // Increment counters
+                                totalPackets++;
+                                activeAnimations++;
+                                updateMetrics({ packetsSent: totalPackets });
+                                
+                                animatePacket(packet, nodeMap[link.sourceId], nodeMap[link.targetId], 500, 0, function() {
+                                    // Mark this node as having broadcast
+                                    hasNodeBroadcast.add(link.targetId);
+                                    
+                                    // Decrement animation counter
+                                    activeAnimations--;
+                                    
+                                    // Check if we can process from queue
+                                    if (animationQueue.length > 0 && activeAnimations < MAX_CONCURRENT_ANIMATIONS / 2) {
+                                        processQueuedAnimations();
+                                    }
+                                    
+                                    // If this packet reached Z and we haven't marked it yet
+                                    if (link.targetId === 'Z' && !hasReachedDestination) {
+                                        hasReachedDestination = true;
+                                        flashDestinationNode();
+                                    }
+                                    
+                                    // If this is the last packet in the batch and we're at the end of all batches
+                                    if (batchIndex === currentBatch.length - 1 && processedLinks >= thirdWaveLinks.length) {
+                                        // Wait to ensure animations complete, then finish
+                                        setTimeout(() => {
+                                            if (animationQueue.length === 0) {
+                                                finishFloodingPhase();
+                                            }
+                                        }, 800);
+                                    }
+                                });
+                            }, batchIndex * 30); // Stagger packet creation slightly
+                        });
+                        
+                        // Process next batch if there are more links
+                        if (processedLinks < thirdWaveLinks.length) {
+                            setTimeout(processNextBatch, 300);
+                        }
+                    };
+                    
+                    // Start processing third wave in batches
+                    processNextBatch();
+                }
+                
+                function processQueuedAnimations() {
+                    // Process from queue if there are items and we have capacity
+                    while (animationQueue.length > 0 && activeAnimations < MAX_CONCURRENT_ANIMATIONS / 2) {
+                        const link = animationQueue.shift();
+                        
+                        // Skip if target has already broadcast
+                        if (hasNodeBroadcast.has(link.targetId)) {
+                            // Show dropped message effect
+                            showDroppedMessageEffect(nodeMap[link.targetId]);
+                            continue;
+                        }
+                        
                         const packet = createPacket(nodeMap[link.sourceId], nodeMap[link.targetId], 'packet-discovery');
                         
-                        // Increment packet count
+                        // Increment counters
                         totalPackets++;
+                        activeAnimations++;
                         updateMetrics({ packetsSent: totalPackets });
                         
-                        return { packet, link };
-                    });
-                    
-                    thirdWavePackets.forEach(({ packet, link }, index) => {
-                        animatePacket(packet, nodeMap[link.sourceId], nodeMap[link.targetId], 500, 500, function() {
-                            // If this is the last packet, finish flooding phase
-                            if (index === thirdWavePackets.length - 1) {
-                                finishFloodingPhase();
-                            }
+                        animatePacket(packet, nodeMap[link.sourceId], nodeMap[link.targetId], 500, 0, function() {
+                            // Mark this node as having broadcast
+                            hasNodeBroadcast.add(link.targetId);
+                            
+                            // Decrement animation counter
+                            activeAnimations--;
                             
                             // If this packet reached Z and we haven't marked it yet
                             if (link.targetId === 'Z' && !hasReachedDestination) {
                                 hasReachedDestination = true;
-                                
-                                // Flash destination node to indicate receipt
-                                networkGroup.selectAll('.network-node')
-                                    .filter(d => d.id === 'Z')
-                                    .transition()
-                                    .duration(300)
-                                    .attr('r', 35)
-                                    .transition()
-                                    .duration(300)
-                                    .attr('r', 25);
-                                    
-                                // Update caption to indicate destination reached but flooding continues
-                                document.getElementById('phase-caption').innerText = 
-                                    'MeshCore Path Discovery: Destination reached, but flooding continues throughout the network.';
+                                flashDestinationNode();
+                            }
+                            
+                            // Continue processing queue
+                            if (animationQueue.length > 0) {
+                                processQueuedAnimations();
                             }
                         });
-                    });
+                    }
+                    
+                    // If there are still items in the queue but we're at capacity, check again later
+                    if (animationQueue.length > 0) {
+                        setTimeout(processQueuedAnimations, 500);
+                    }
+                }
+                
+                function flashDestinationNode() {
+                    // Flash destination node to indicate receipt
+                    networkGroup.selectAll('.network-node')
+                        .filter(d => d.id === 'Z')
+                        .transition()
+                        .duration(300)
+                        .attr('r', d => d.type === 'destination' ? 20 : 14)
+                        .transition()
+                        .duration(300)
+                        .attr('r', d => d.type === 'destination' ? 16 : 12);
+                        
+                    // Update caption to indicate destination reached but flooding continues
+                    document.getElementById('phase-caption').innerText = 
+                        'MeshCore Path Discovery: Destination reached, but flooding continues throughout the network.';
                 }
                 
                 function finishFloodingPhase() {
@@ -1428,10 +1851,10 @@
                                 .filter(d => d.id === 'A')
                                 .transition()
                                 .duration(300)
-                                .attr('r', 30)
+                                .attr('r', d => d.type === 'source' ? 20 : 14)
                                 .transition()
                                 .duration(300)
-                                .attr('r', 25);
+                                .attr('r', d => d.type === 'source' ? 16 : 12);
                             
                             // Update caption
                             document.getElementById('phase-caption').innerText = 
@@ -1488,10 +1911,18 @@
                                     .filter(d => d.id === targetId)
                                     .transition()
                                     .duration(200)
-                                    .attr('r', 28)
+                                    .attr('r', d => {
+                                        if (d.type === 'source') return 20;
+                                        if (d.id.length === 1) return 16;
+                                        return 12;
+                                    })
                                     .transition()
                                     .duration(200)
-                                    .attr('r', 25);
+                                    .attr('r', d => {
+                                        if (d.type === 'source') return 16;
+                                        if (d.id.length === 1) return 12;
+                                        return 8;
+                                    });
                                 
                                 // Remove the ACK packet
                                 d3.select(this).remove();
@@ -1536,9 +1967,16 @@
                 let directPackets = 0;
                 let hasReachedDestination = false;
                 
+                // Get optimal path for direct routing
+                const optimalPath = findOptimalPath();
+                
                 // Animate direct route along optimal path
                 if (optimalPath.length >= 2) {
+                    // Show direct routing along optimal path
                     animateDirectPath(0);
+                    
+                    // After a delay, show dropped packets from nodes not on the path
+                    setTimeout(showDroppedPackets, 3000);
                 } else {
                     document.getElementById('phase-caption').innerText = 
                         'No valid path found between source and destination. Try refreshing to generate a new network.';
@@ -1568,53 +2006,22 @@
                             });
                         }
                         
-                        // Show a success effect
-                        nodeElements.filter(d => d.id === 'Z')
+                        // Flash the destination node to show success
+                        networkGroup.selectAll('.network-node')
+                            .filter(d => d.id === 'Z')
                             .transition()
                             .duration(300)
+                            .attr('r', d => d.type === 'destination' ? 20 : 14)
                             .attr('fill', '#4caf50')
                             .transition()
                             .duration(300)
+                            .attr('r', d => d.type === 'destination' ? 16 : 12)
                             .attr('fill', '#e91e63');
                         
-                        // After a delay, show a dropped packet for demonstration
+                        // After a delay, repeat the direct path demonstration
                         setTimeout(function() {
-                            // Find a node that's not on the path but connected to A
-                            const offPathLinks = links.filter(link => 
-                                (link.source === 'A' || link.target === 'A') && 
-                                !optimalPath.includes(link.source === 'A' ? link.target : link.source));
-                            
-                            if (offPathLinks.length > 0) {
-                                const randomLink = offPathLinks[Math.floor(Math.random() * offPathLinks.length)];
-                                const targetId = randomLink.source === 'A' ? randomLink.target : randomLink.source;
-                                
-                                // Create and animate a dropped packet
-                                const droppedPacket = createPacket(nodeMap['A'], nodeMap[targetId], 'packet-dropped');
-                                
-                                // Increment packet count
-                                directPackets++;
-                                updateMetrics({ packetsSent: (discoveryPackets || 0) + directPackets });
-                                
-                                animatePacket(droppedPacket, nodeMap['A'], nodeMap[targetId], 500, 200, function() {
-                                    // Show packet being dropped
-                                    d3.select(this)
-                                        .transition()
-                                        .duration(200)
-                                        .attr('r', 0)
-                                        .attr('fill-opacity', 0);
-                                    
-                                    // Show another successful direct route after a delay
-                                    setTimeout(function() {
-                                        animateDirectPath(0); // Repeat the animation
-                                    }, 1000);
-                                });
-                            } else {
-                                // No eligible off-path links, just repeat the direct path
-                                setTimeout(function() {
-                                    animateDirectPath(0);
-                                }, 1000);
-                            }
-                        }, 1000);
+                            animateDirectPath(0);
+                        }, 1500);
                         
                         return;
                     }
@@ -1629,10 +2036,78 @@
                     directPackets++;
                     updateMetrics({ packetsSent: (discoveryPackets || 0) + directPackets });
                     
-                    animatePacket(packet, nodeMap[sourceId], nodeMap[targetId], 500, 500, function() {
+                    animatePacket(packet, nodeMap[sourceId], nodeMap[targetId], 500, 300, function() {
                         // Continue to the next segment
                         animateDirectPath(currentIndex + 1);
                     });
+                }
+                
+                function showDroppedPackets() {
+                    // Find a few nodes that are not on the optimal path but connected to nodes that are
+                    const offPathConnections = [];
+                    
+                    // Set of nodes in the optimal path
+                    const optimalPathNodeSet = new Set(optimalPath);
+                    
+                    // Look at each node in the optimal path
+                    for (let i = 0; i < optimalPath.length; i++) {
+                        const pathNodeId = optimalPath[i];
+                        
+                        // Find links where one end is this path node
+                        const connectedLinks = links.filter(link => 
+                            (link.source === pathNodeId || link.target === pathNodeId));
+                        
+                        // For each link, check if the other end is not in the optimal path
+                        connectedLinks.forEach(link => {
+                            const otherId = link.source === pathNodeId ? link.target : link.source;
+                            
+                            if (!optimalPathNodeSet.has(otherId)) {
+                                offPathConnections.push({
+                                    pathNodeId,
+                                    offPathNodeId: otherId
+                                });
+                            }
+                        });
+                        
+                        // Limit to 3 connections to avoid visual clutter
+                        if (offPathConnections.length >= 3) break;
+                    }
+                    
+                    // If we found any, animate dropped packets
+                    if (offPathConnections.length > 0) {
+                        // Update caption to explain dropped packets
+                        document.getElementById('phase-caption').innerText = 
+                            'MeshCore Direct Routing: Nodes not on the established route drop packets, ensuring bandwidth efficiency.';
+                        
+                        // Animate up to 3 dropped packets
+                        const droppedCount = Math.min(offPathConnections.length, 3);
+                        
+                        for (let i = 0; i < droppedCount; i++) {
+                            const connection = offPathConnections[i];
+                            
+                            // Create and animate a dropped packet
+                            setTimeout(() => {
+                                const droppedPacket = createPacket(
+                                    nodeMap[connection.pathNodeId], 
+                                    nodeMap[connection.offPathNodeId], 
+                                    'packet-dropped'
+                                );
+                                
+                                // Increment packet count
+                                directPackets++;
+                                updateMetrics({ packetsSent: (discoveryPackets || 0) + directPackets });
+                                
+                                animatePacket(droppedPacket, nodeMap[connection.pathNodeId], nodeMap[connection.offPathNodeId], 500, 200, function() {
+                                    // Show packet being dropped
+                                    d3.select(this)
+                                        .transition()
+                                        .duration(200)
+                                        .attr('r', 0)
+                                        .attr('fill-opacity', 0);
+                                });
+                            }, i * 800); // Stagger the dropped packets
+                        }
+                    }
                 }
             }
             
@@ -1645,7 +2120,7 @@
                 
                 // Update caption
                 document.getElementById('phase-caption').innerText = 
-                    'Meshtastic Flooding: Radio signals propagate through all nodes within range, which rebroadcast to maximize delivery probability.';
+                    'Meshtastic Flooding: Radio signals propagate through all nodes within range, which rebroadcast once per message to maximize delivery probability.';
                 
                 // Find nodes by ID
                 const nodeMap = {};
@@ -1653,8 +2128,8 @@
                     nodeMap[node.id] = node;
                 });
                 
-                // Set to track visited nodes to avoid loops
-                const visited = new Set(['A']);
+                // Set to track nodes that have already broadcast (not just visited)
+                const hasNodeBroadcast = new Set(['A']);
                 const rebroadcastQueue = [];
                 
                 // Start timing for delivery time metric
@@ -1662,45 +2137,102 @@
                 let hasReachedDestination = false;
                 let totalPackets = 0;
                 
-                // Start flood from node A with visible waves
-                floodFromNode('A', visited, 0);
+                // Constants to control flooding visualization
+                const MAX_CONCURRENT_ANIMATIONS = 25; // Limit number of concurrent animations
+                const MAX_FLOOD_DEPTH = 7; // Meshtastic is limited to 7 hops
+                let activeAnimations = 0;
                 
-                function floodFromNode(nodeId, visited, depth) {
-                    if (depth > 5) return; // Limit recursion depth
+                // Start flood from node A with visible waves
+                floodFromNode('A', 0);
+                
+                function floodFromNode(nodeId, depth) {
+                    if (depth > MAX_FLOOD_DEPTH) return; // Limit recursion depth
                     
                     const sourceNode = nodes.find(n => n.id === nodeId);
                     
-                    // Create a visible flood wave from this node
-                    createFloodWave(sourceNode, 'meshtastic-wave');
+                    // Create a visible flood wave from this node if it's a key node
+                    // Only show waves for original nodes (A-Z) to reduce visual clutter
+                    if (nodeId.length === 1) {
+                        createFloodWave(sourceNode, 'meshtastic-wave');
+                    }
+                    
+                    // Mark this node as having broadcast
+                    hasNodeBroadcast.add(nodeId);
                     
                     // Get all connections for this node
                     const nodeLinks = links.filter(link => 
                         link.source === nodeId || link.target === nodeId);
                     
-                    // Create a packet for each connection
-                    nodeLinks.forEach((link, index) => {
+                    // Limit the number of visualized connections for performance
+                    // For nodes with many connections, select a subset
+                    let selectedLinks = nodeLinks;
+                    if (nodeLinks.length > 5) {
+                        // Always include the direct path to Z if it exists
+                        const directToZ = nodeLinks.find(link => 
+                            (link.source === nodeId && link.target === 'Z') || 
+                            (link.target === nodeId && link.source === 'Z'));
+                        
+                        // Randomly select a subset of links
+                        const otherLinks = nodeLinks.filter(link => 
+                            !((link.source === nodeId && link.target === 'Z') || 
+                            (link.target === nodeId && link.source === 'Z')));
+                        
+                        const shuffled = otherLinks.sort(() => 0.5 - Math.random());
+                        const selected = shuffled.slice(0, 4); // Take up to 4 random connections
+                        
+                        selectedLinks = directToZ ? [directToZ, ...selected] : selected;
+                    }
+                    
+                    // Create a packet for each selected connection
+                    selectedLinks.forEach((link, index) => {
                         const targetId = link.source === nodeId ? link.target : link.source;
                         
-                        // Skip if we've already visited this node from this origin
-                        if (visited.has(targetId + '-from-' + nodeId)) return;
-                        visited.add(targetId + '-from-' + nodeId);
+                        // Check if target has already broadcast - if so, show dropped message effect
+                        if (hasNodeBroadcast.has(targetId)) {
+                            setTimeout(() => {
+                                showDroppedMessageEffect(nodeMap[targetId]);
+                            }, 200 + (index * 100));
+                            return;
+                        }
+                        
+                        // Check if we're already at the animation limit
+                        if (activeAnimations >= MAX_CONCURRENT_ANIMATIONS) {
+                            // Queue this animation for later only if target hasn't broadcast yet
+                            if (!hasNodeBroadcast.has(targetId)) {
+                                rebroadcastQueue.push({
+                                    sourceId: nodeId,
+                                    targetId: targetId,
+                                    depth: depth,
+                                    delay: 300
+                                });
+                            }
+                            return;
+                        }
                         
                         // Create and animate packet with enhanced rings
                         const packet = createPacket(nodeMap[nodeId], nodeMap[targetId], 'packet-meshtastic');
                         
-                        // Increment packet count
+                        // Increment packet count and active animations
                         totalPackets++;
+                        activeAnimations++;
                         updateMetrics({ packetsSent: totalPackets });
                         
-                        animatePacket(packet, nodeMap[nodeId], nodeMap[targetId], 800, 300 + (index * 200), function() {
-                            // Schedule the next wave with a slight delay
-                            rebroadcastQueue.push({
-                                nodeId: targetId,
-                                delay: 800
-                            });
+                        animatePacket(packet, nodeMap[nodeId], nodeMap[targetId], 800, 200 + (index * 100), function() {
+                            // Decrement active animations count
+                            activeAnimations--;
                             
-                            // If this is the last link, process the queue
-                            if (index === nodeLinks.length - 1) {
+                            // Schedule the next wave only if this node hasn't broadcast before
+                            if (!hasNodeBroadcast.has(targetId)) {
+                                rebroadcastQueue.push({
+                                    sourceId: targetId,
+                                    targetId: null, // No specific target for flooding
+                                    depth: depth + 1,
+                                    delay: 500
+                                });
+                            }
+                            
+                            // Process the queue immediately if we're below the animation limit
+                            if (activeAnimations < MAX_CONCURRENT_ANIMATIONS / 2) {
                                 processRebroadcastQueue();
                             }
                             
@@ -1727,26 +2259,124 @@
                                     efficiency: efficiency
                                 });
                                 
-                                nodeElements.filter(d => d.id === 'Z')
+                                // Flash the destination node
+                                networkGroup.selectAll('.network-node')
+                                    .filter(d => d.id === 'Z')
                                     .transition()
                                     .duration(300)
+                                    .attr('r', d => d.type === 'destination' ? 20 : 14)
                                     .attr('fill', '#4caf50')
                                     .transition()
                                     .duration(300)
+                                    .attr('r', d => d.type === 'destination' ? 16 : 12)
                                     .attr('fill', '#e91e63');
+                                
+                                // Update caption to indicate message arrived but flooding continues
+                                document.getElementById('phase-caption').innerText = 
+                                    'Meshtastic Flooding: Message reached destination, but flooding continues up to 7 hops.';
                             }
                         });
                     });
+                    
+                    // Process queue after a delay if no animations were started
+                    if (activeAnimations === 0) {
+                        setTimeout(processRebroadcastQueue, 500);
+                    }
                 }
                 
                 function processRebroadcastQueue() {
-                    if (rebroadcastQueue.length === 0) return;
+                    // Process up to the max concurrent animations limit
+                    let processed = 0;
                     
-                    const nextBroadcast = rebroadcastQueue.shift();
-                    setTimeout(function() {
-                        floodFromNode(nextBroadcast.nodeId, visited, 1);
-                        processRebroadcastQueue();
-                    }, nextBroadcast.delay);
+                    while (rebroadcastQueue.length > 0 && activeAnimations < MAX_CONCURRENT_ANIMATIONS && processed < 5) {
+                        const nextBroadcast = rebroadcastQueue.shift();
+                        processed++;
+                        
+                        if (nextBroadcast.targetId === null) {
+                            // This is a flooding request, only process if node hasn't broadcast yet
+                            if (!hasNodeBroadcast.has(nextBroadcast.sourceId)) {
+                                setTimeout(function() {
+                                    floodFromNode(nextBroadcast.sourceId, nextBroadcast.depth);
+                                }, nextBroadcast.delay);
+                            }
+                        } else {
+                            // This is a directed packet, check if target has already broadcast
+                            if (hasNodeBroadcast.has(nextBroadcast.targetId)) {
+                                // Show dropped message effect
+                                setTimeout(() => {
+                                    showDroppedMessageEffect(nodeMap[nextBroadcast.targetId]);
+                                }, 200);
+                                continue;
+                            }
+                            
+                            // Create and animate packet
+                            const packet = createPacket(nodeMap[nextBroadcast.sourceId], nodeMap[nextBroadcast.targetId], 'packet-meshtastic');
+                            
+                            // Increment packet count and active animations
+                            totalPackets++;
+                            activeAnimations++;
+                            updateMetrics({ packetsSent: totalPackets });
+                            
+                            animatePacket(packet, nodeMap[nextBroadcast.sourceId], nodeMap[nextBroadcast.targetId], 800, 0, function() {
+                                // Decrement active animations count
+                                activeAnimations--;
+                                
+                                // Schedule the next wave only if this node hasn't broadcast yet
+                                if (!hasNodeBroadcast.has(nextBroadcast.targetId)) {
+                                    rebroadcastQueue.push({
+                                        sourceId: nextBroadcast.targetId,
+                                        targetId: null,
+                                        depth: nextBroadcast.depth + 1,
+                                        delay: 300
+                                    });
+                                }
+                                
+                                // If we reached Z, update metrics
+                                if (nextBroadcast.targetId === 'Z' && !hasReachedDestination) {
+                                    hasReachedDestination = true;
+                                    
+                                    // Calculate metrics
+                                    const deliveryTime = Date.now() - startTime;
+                                    const hopsRequired = nextBroadcast.depth + 1;
+                                    const optimalPath = findOptimalPath();
+                                    const efficiency = optimalPath.length > 0 ? 
+                                        (optimalPath.length - 1) / totalPackets : 0;
+                                    
+                                    updateMetrics({
+                                        deliveryTime: deliveryTime,
+                                        hopsRequired: hopsRequired,
+                                        efficiency: efficiency
+                                    });
+                                    
+                                    // Flash the destination node
+                                    networkGroup.selectAll('.network-node')
+                                        .filter(d => d.id === 'Z')
+                                        .transition()
+                                        .duration(300)
+                                        .attr('r', d => d.type === 'destination' ? 20 : 14)
+                                        .attr('fill', '#4caf50')
+                                        .transition()
+                                        .duration(300)
+                                        .attr('r', d => d.type === 'destination' ? 16 : 12)
+                                        .attr('fill', '#e91e63');
+                                    
+                                    // Update caption
+                                    document.getElementById('phase-caption').innerText = 
+                                        'Meshtastic Flooding: Message reached destination, but flooding continues up to 7 hops.';
+                                }
+                                
+                                // Process more from the queue
+                                if (rebroadcastQueue.length > 0) {
+                                    processRebroadcastQueue();
+                                }
+                            });
+                        }
+                    }
+                    
+                    // If there are still items in the queue, schedule another processing round
+                    if (rebroadcastQueue.length > 0) {
+                        setTimeout(processRebroadcastQueue, 800);
+                    }
                 }
             }
             
@@ -1765,9 +2395,19 @@
                     .attr('fill', d => {
                         if (d.type === 'source') return '#4caf50';
                         if (d.type === 'destination') return '#e91e63';
+                        if (d.id === 'E' || d.name.includes('Hub')) return '#ff9800';
                         return '#ddd';
                     })
-                    .attr('r', 25);
+                    .attr('r', d => {
+                        // Make source and destination nodes larger
+                        if (d.type === 'source' || d.type === 'destination') return 16;
+                        // Make hub nodes slightly larger
+                        if (d.id === 'E' || d.name.includes('Hub')) return 14;
+                        // Make original nodes (B-H) slightly larger
+                        if (d.id.length === 1) return 12;
+                        // Make all other nodes smaller
+                        return 8;
+                    });
                 
                 // Clear optimal path highlighting if requested
                 if (clearOptimalPath) {
@@ -1963,6 +2603,35 @@
             
             // Start with Meshtastic flooding by default
             setTimeout(animateMeshtasticFlooding, 500);
+            
+            // Add this function after createFloodWave and before animateMeshtasticFlooding
+            function showDroppedMessageEffect(node) {
+                // Check if we got a valid node
+                if (!node) return;
+                
+                // Create a red flash effect
+                const flash = networkGroup.append('circle')
+                    .attr('class', 'packet-dropped-flash')
+                    .attr('cx', node.x)
+                    .attr('cy', node.y)
+                    .attr('r', 0)
+                    .attr('fill', '#dc3545')
+                    .attr('fill-opacity', 0.6)
+                    .attr('stroke', '#dc3545')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-opacity', 0.8);
+                
+                // Animate the flash
+                flash.transition()
+                    .duration(300)
+                    .attr('r', 15)
+                    .attr('fill-opacity', 0.4)
+                    .transition()
+                    .duration(200)
+                    .attr('r', 0)
+                    .attr('fill-opacity', 0)
+                    .remove();
+            }
         });
         
         // Add smooth scrolling and other UI functionality
