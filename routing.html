@@ -122,6 +122,12 @@
             fill: #dc3545;
         }
         
+        .packet-ack {
+            fill: #9c27b0;  /* Purple color for ACK packets */
+            stroke: #fff;
+            stroke-width: 2;
+        }
+        
         /* Expanding ring styles */
         .packet-ring {
             fill: none;
@@ -143,6 +149,11 @@
         
         .packet-ring.dropped-ring {
             stroke: #dc3545;
+        }
+        
+        .packet-ring.ack-ring {
+            stroke: #9c27b0;  /* Purple color for ACK rings */
+            stroke-dasharray: 3,3;  /* Dashed stroke for ACK rings */
         }
         
         /* Flood wave animation */
@@ -361,6 +372,10 @@
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #dc3545;"></div>
                     <span>Dropped Signal</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #9c27b0;"></div>
+                    <span>Route ACK Signal</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: rgba(76, 175, 80, 0.1); border: 1px dashed #4caf50;"></div>
@@ -664,15 +679,15 @@
             function generateRandomTopology() {
                 // Define nodes with random positions and ranges
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: getRandomRange(160, 240) },
-                    { id: 'B', name: 'Node B', type: 'node', range: getRandomRange(120, 200) },
-                    { id: 'C', name: 'Node C', type: 'node', range: getRandomRange(140, 220) },
-                    { id: 'D', name: 'Node D', type: 'node', range: getRandomRange(100, 180) },
-                    { id: 'E', name: 'Node E', type: 'node', range: getRandomRange(160, 240) },
-                    { id: 'F', name: 'Node F', type: 'node', range: getRandomRange(140, 200) },
-                    { id: 'G', name: 'Node G', type: 'node', range: getRandomRange(120, 180) },
-                    { id: 'H', name: 'Node H', type: 'node', range: getRandomRange(140, 220) },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: getRandomRange(160, 240) }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: getRandomRange(320, 480) },
+                    { id: 'B', name: 'Node B', type: 'node', range: getRandomRange(240, 400) },
+                    { id: 'C', name: 'Node C', type: 'node', range: getRandomRange(280, 440) },
+                    { id: 'D', name: 'Node D', type: 'node', range: getRandomRange(200, 360) },
+                    { id: 'E', name: 'Node E', type: 'node', range: getRandomRange(320, 480) },
+                    { id: 'F', name: 'Node F', type: 'node', range: getRandomRange(280, 400) },
+                    { id: 'G', name: 'Node G', type: 'node', range: getRandomRange(240, 360) },
+                    { id: 'H', name: 'Node H', type: 'node', range: getRandomRange(280, 440) },
+                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: getRandomRange(320, 480) }
                 ];
                 
                 // Assign random positions
@@ -708,15 +723,15 @@
             // Function to generate dense topology
             function generateDenseTopology() {
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 300 },
-                    { id: 'B', name: 'Node B', type: 'node', range: 280 },
-                    { id: 'C', name: 'Node C', type: 'node', range: 280 },
-                    { id: 'D', name: 'Node D', type: 'node', range: 280 },
-                    { id: 'E', name: 'Node E', type: 'node', range: 280 },
-                    { id: 'F', name: 'Node F', type: 'node', range: 280 },
-                    { id: 'G', name: 'Node G', type: 'node', range: 280 },
-                    { id: 'H', name: 'Node H', type: 'node', range: 280 },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 300 }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 600 },
+                    { id: 'B', name: 'Node B', type: 'node', range: 560 },
+                    { id: 'C', name: 'Node C', type: 'node', range: 560 },
+                    { id: 'D', name: 'Node D', type: 'node', range: 560 },
+                    { id: 'E', name: 'Node E', type: 'node', range: 560 },
+                    { id: 'F', name: 'Node F', type: 'node', range: 560 },
+                    { id: 'G', name: 'Node G', type: 'node', range: 560 },
+                    { id: 'H', name: 'Node H', type: 'node', range: 560 },
+                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 600 }
                 ];
                 
                 // Position in a more evenly distributed pattern
@@ -759,15 +774,15 @@
             // Function to generate sparse topology
             function generateSparseTopology() {
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 140 },
-                    { id: 'B', name: 'Node B', type: 'node', range: 120 },
-                    { id: 'C', name: 'Node C', type: 'node', range: 120 },
-                    { id: 'D', name: 'Node D', type: 'node', range: 120 },
-                    { id: 'E', name: 'Node E', type: 'node', range: 120 },
-                    { id: 'F', name: 'Node F', type: 'node', range: 120 },
-                    { id: 'G', name: 'Node G', type: 'node', range: 120 },
-                    { id: 'H', name: 'Node H', type: 'node', range: 120 },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 140 }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 280 },
+                    { id: 'B', name: 'Node B', type: 'node', range: 240 },
+                    { id: 'C', name: 'Node C', type: 'node', range: 240 },
+                    { id: 'D', name: 'Node D', type: 'node', range: 240 },
+                    { id: 'E', name: 'Node E', type: 'node', range: 240 },
+                    { id: 'F', name: 'Node F', type: 'node', range: 240 },
+                    { id: 'G', name: 'Node G', type: 'node', range: 240 },
+                    { id: 'H', name: 'Node H', type: 'node', range: 240 },
+                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 280 }
                 ];
                 
                 // Position to create sparse network
@@ -810,15 +825,15 @@
             // Function to generate linear topology
             function generateLinearTopology() {
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 120 },
-                    { id: 'B', name: 'Node B', type: 'node', range: 120 },
-                    { id: 'C', name: 'Node C', type: 'node', range: 120 },
-                    { id: 'D', name: 'Node D', type: 'node', range: 120 },
-                    { id: 'E', name: 'Node E', type: 'node', range: 120 },
-                    { id: 'F', name: 'Node F', type: 'node', range: 120 },
-                    { id: 'G', name: 'Node G', type: 'node', range: 120 },
-                    { id: 'H', name: 'Node H', type: 'node', range: 120 },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 120 }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 240 },
+                    { id: 'B', name: 'Node B', type: 'node', range: 240 },
+                    { id: 'C', name: 'Node C', type: 'node', range: 240 },
+                    { id: 'D', name: 'Node D', type: 'node', range: 240 },
+                    { id: 'E', name: 'Node E', type: 'node', range: 240 },
+                    { id: 'F', name: 'Node F', type: 'node', range: 240 },
+                    { id: 'G', name: 'Node G', type: 'node', range: 240 },
+                    { id: 'H', name: 'Node H', type: 'node', range: 240 },
+                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 240 }
                 ];
                 
                 // Position in a line
@@ -853,15 +868,15 @@
             // Function to generate star topology
             function generateStarTopology() {
                 const nodes = [
-                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 400 },
-                    { id: 'B', name: 'Node B', type: 'node', range: 120 },
-                    { id: 'C', name: 'Node C', type: 'node', range: 120 },
-                    { id: 'D', name: 'Node D', type: 'node', range: 120 },
-                    { id: 'E', name: 'Node E (Hub)', type: 'node', range: 400 },
-                    { id: 'F', name: 'Node F', type: 'node', range: 120 },
-                    { id: 'G', name: 'Node G', type: 'node', range: 120 },
-                    { id: 'H', name: 'Node H', type: 'node', range: 120 },
-                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 120 }
+                    { id: 'A', name: 'Node A (Source)', type: 'source', range: 800 },
+                    { id: 'B', name: 'Node B', type: 'node', range: 240 },
+                    { id: 'C', name: 'Node C', type: 'node', range: 240 },
+                    { id: 'D', name: 'Node D', type: 'node', range: 240 },
+                    { id: 'E', name: 'Node E (Hub)', type: 'node', range: 800 },
+                    { id: 'F', name: 'Node F', type: 'node', range: 240 },
+                    { id: 'G', name: 'Node G', type: 'node', range: 240 },
+                    { id: 'H', name: 'Node H', type: 'node', range: 240 },
+                    { id: 'Z', name: 'Node Z (Destination)', type: 'destination', range: 240 }
                 ];
                 
                 // Position with E (hub) in the center
@@ -1189,6 +1204,7 @@
                 // Start timing for delivery time metric
                 const startTime = Date.now();
                 let totalPackets = 0;
+                let hasReachedDestination = false;
                 
                 // Create a flood wave from source node
                 createFloodWave(nodes[0], 'meshcore-wave');
@@ -1253,27 +1269,239 @@
                     
                     secondWavePackets.forEach(({ packet, link }, index) => {
                         animatePacket(packet, nodeMap[link.sourceId], nodeMap[link.targetId], 500, 500, function() {
-                            // If this is the last packet or if we've reached Z, highlight the optimal path
-                            if (index === secondWavePackets.length - 1 || link.targetId === 'Z') {
+                            // If this is the last packet, continue with the third wave
+                            if (index === secondWavePackets.length - 1) {
+                                // Continue with a third wave to show ongoing flooding
                                 setTimeout(function() {
-                                    // Calculate discovery phase metrics
-                                    const discoveryTime = Date.now() - startTime;
+                                    animateThirdWave(secondWaveLinks);
+                                }, 500);
+                            }
+                            
+                            // If this packet reached Z, mark it but don't stop the simulation
+                            if (link.targetId === 'Z' && !hasReachedDestination) {
+                                hasReachedDestination = true;
+                                
+                                // Flash destination node to indicate receipt
+                                networkGroup.selectAll('.network-node')
+                                    .filter(d => d.id === 'Z')
+                                    .transition()
+                                    .duration(300)
+                                    .attr('r', 35)
+                                    .transition()
+                                    .duration(300)
+                                    .attr('r', 25);
                                     
-                                    // Update metrics for discovery phase
-                                    updateMetrics({
-                                        deliveryTime: discoveryTime
-                                    });
-                                    
-                                    // Highlight the optimal path
-                                    highlightOptimalPath();
-                                    
-                                    // Update caption
-                                    document.getElementById('phase-caption').innerText = 
-                                        'MeshCore Path Discovery: Optimal path found and established.';
-                                }, 1000);
+                                // Update caption to indicate destination reached but flooding continues
+                                document.getElementById('phase-caption').innerText = 
+                                    'MeshCore Path Discovery: Destination reached, but flooding continues throughout the network.';
                             }
                         });
                     });
+                }
+                
+                function animateThirdWave(previousLinks) {
+                    // Track visited links to avoid duplicates
+                    const visitedLinkKeys = new Set();
+                    previousLinks.forEach(link => {
+                        visitedLinkKeys.add(`${link.sourceId}-${link.targetId}`);
+                        visitedLinkKeys.add(`${link.targetId}-${link.sourceId}`);
+                    });
+                    
+                    // Get third wave links
+                    const thirdWaveLinks = [];
+                    previousLinks.forEach(prevLink => {
+                        // Skip if source is Z (destination reached)
+                        if (prevLink.targetId !== 'Z') { 
+                            const nodeLinks = links.filter(l => 
+                                (l.source === prevLink.targetId || l.target === prevLink.targetId) && 
+                                l.source !== prevLink.sourceId && l.target !== prevLink.sourceId);
+                            
+                            nodeLinks.forEach(nodeLink => {
+                                const targetId = nodeLink.source === prevLink.targetId ? nodeLink.target : nodeLink.source;
+                                // Avoid creating duplicate links
+                                const linkKey = `${prevLink.targetId}-${targetId}`;
+                                const reverseLinkKey = `${targetId}-${prevLink.targetId}`;
+                                
+                                if (!visitedLinkKeys.has(linkKey) && !visitedLinkKeys.has(reverseLinkKey)) {
+                                    visitedLinkKeys.add(linkKey);
+                                    visitedLinkKeys.add(reverseLinkKey);
+                                    thirdWaveLinks.push({ sourceId: prevLink.targetId, targetId });
+                                }
+                            });
+                        }
+                    });
+                    
+                    // If no more links to traverse, finish the flooding phase
+                    if (thirdWaveLinks.length === 0) {
+                        finishFloodingPhase();
+                        return;
+                    }
+                    
+                    // Create and animate third wave packets
+                    const thirdWavePackets = thirdWaveLinks.map(link => {
+                        const packet = createPacket(nodeMap[link.sourceId], nodeMap[link.targetId], 'packet-discovery');
+                        
+                        // Increment packet count
+                        totalPackets++;
+                        updateMetrics({ packetsSent: totalPackets });
+                        
+                        return { packet, link };
+                    });
+                    
+                    thirdWavePackets.forEach(({ packet, link }, index) => {
+                        animatePacket(packet, nodeMap[link.sourceId], nodeMap[link.targetId], 500, 500, function() {
+                            // If this is the last packet, finish flooding phase
+                            if (index === thirdWavePackets.length - 1) {
+                                finishFloodingPhase();
+                            }
+                            
+                            // If this packet reached Z and we haven't marked it yet
+                            if (link.targetId === 'Z' && !hasReachedDestination) {
+                                hasReachedDestination = true;
+                                
+                                // Flash destination node to indicate receipt
+                                networkGroup.selectAll('.network-node')
+                                    .filter(d => d.id === 'Z')
+                                    .transition()
+                                    .duration(300)
+                                    .attr('r', 35)
+                                    .transition()
+                                    .duration(300)
+                                    .attr('r', 25);
+                                    
+                                // Update caption to indicate destination reached but flooding continues
+                                document.getElementById('phase-caption').innerText = 
+                                    'MeshCore Path Discovery: Destination reached, but flooding continues throughout the network.';
+                            }
+                        });
+                    });
+                }
+                
+                function finishFloodingPhase() {
+                    setTimeout(function() {
+                        // Calculate discovery phase metrics
+                        const discoveryTime = Date.now() - startTime;
+                        
+                        // Update metrics for discovery phase
+                        updateMetrics({
+                            deliveryTime: discoveryTime
+                        });
+                        
+                        // Find the optimal path
+                        const optimalPath = findOptimalPath();
+                        
+                        // Update caption to show ACK phase
+                        document.getElementById('phase-caption').innerText = 
+                            'MeshCore Path Discovery: Flooding complete. Sending ACK with optimal path information back to source.';
+                        
+                        // Highlight the optimal path
+                        highlightOptimalPath();
+                        
+                        // Send ACK packets back along the optimal path from Z to A
+                        if (optimalPath.length >= 2) {
+                            // Create a slight delay before starting ACK process
+                            setTimeout(function() {
+                                animatePathAck(optimalPath);
+                            }, 1000);
+                        } else {
+                            // No valid path found
+                            document.getElementById('phase-caption').innerText = 
+                                'No valid path found between source and destination.';
+                        }
+                    }, 1000);
+                }
+                
+                // Function to animate acknowledgment packets returning along the optimal path
+                function animatePathAck(path) {
+                    // Reverse the path to go from Z to A
+                    const reversePath = [...path].reverse();
+                    
+                    // Create and animate ACK packets along the path
+                    animateAckSegment(0);
+                    
+                    function animateAckSegment(currentIndex) {
+                        if (currentIndex >= reversePath.length - 1) {
+                            // We've reached the source node, route is established
+                            
+                            // Highlight source node to indicate receipt of ACK
+                            networkGroup.selectAll('.network-node')
+                                .filter(d => d.id === 'A')
+                                .transition()
+                                .duration(300)
+                                .attr('r', 30)
+                                .transition()
+                                .duration(300)
+                                .attr('r', 25);
+                            
+                            // Update caption
+                            document.getElementById('phase-caption').innerText = 
+                                'MeshCore Path Discovery: Route established! The source now knows the optimal path to the destination.';
+                            
+                            return;
+                        }
+                        
+                        // Get current segment nodes
+                        const sourceId = reversePath[currentIndex];
+                        const targetId = reversePath[currentIndex + 1];
+                        
+                        // Create ACK packet with special styling
+                        const ackPacket = networkGroup.append('circle')
+                            .attr('class', 'packet packet-ack')
+                            .attr('cx', nodeMap[sourceId].x)
+                            .attr('cy', nodeMap[sourceId].y)
+                            .attr('r', 8)
+                            .attr('fill', '#9c27b0') // Purple color for ACK packets
+                            .attr('fill-opacity', 0.8)
+                            .attr('stroke', '#fff')
+                            .attr('stroke-width', 2);
+                        
+                        // Add a special ring effect for ACK
+                        const ring = networkGroup.append('circle')
+                            .attr('class', 'packet-ring ack-ring')
+                            .attr('cx', nodeMap[sourceId].x)
+                            .attr('cy', nodeMap[sourceId].y)
+                            .attr('r', 10)
+                            .attr('stroke', '#9c27b0')
+                            .attr('stroke-opacity', 0.8)
+                            .attr('stroke-width', 2)
+                            .attr('fill', 'none');
+                        
+                        // Animate the ring
+                        ring.transition()
+                            .duration(500)
+                            .attr('r', nodeMap[sourceId].range * 0.5)
+                            .attr('stroke-opacity', 0)
+                            .remove();
+                        
+                        // Increment packet count for the ACK
+                        totalPackets++;
+                        updateMetrics({ packetsSent: totalPackets });
+                        
+                        // Animate the ACK packet
+                        ackPacket.transition()
+                            .duration(600)
+                            .attr('cx', nodeMap[targetId].x)
+                            .attr('cy', nodeMap[targetId].y)
+                            .on('end', function() {
+                                // Flash the receiving node to indicate receipt
+                                networkGroup.selectAll('.network-node')
+                                    .filter(d => d.id === targetId)
+                                    .transition()
+                                    .duration(200)
+                                    .attr('r', 28)
+                                    .transition()
+                                    .duration(200)
+                                    .attr('r', 25);
+                                
+                                // Remove the ACK packet
+                                d3.select(this).remove();
+                                
+                                // Continue to next segment
+                                setTimeout(function() {
+                                    animateAckSegment(currentIndex + 1);
+                                }, 400);
+                            });
+                    }
                 }
             }
             
