@@ -211,7 +211,7 @@
         }
         
         .node-range.has-received-ack {
-            fill: rgba(156, 39, 176, 0.2); /* Purple with transparency */
+            fill: rgba(181, 34, 207, 0.393); /* Purple with transparency */
             fill-opacity: 0.25;
         }
         
@@ -422,12 +422,12 @@
                     <span>Route ACK Signal</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background-color: rgba(76, 175, 80, 0.1); border: 1px dashed #4caf50;"></div>
-                    <span>Node Transmission Range</span>
+                    <div class="legend-color" style="background-color: #dc3545;"></div>
+                    <span>Red Blink: Node Received But Won't Forward ACK</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background-color: #dc3545;"></div>
-                    <span>Red Flash: Duplicate Message Discarded</span>
+                    <div class="legend-color" style="background-color: rgba(76, 175, 80, 0.1); border: 1px dashed #4caf50;"></div>
+                    <span>Node Transmission Range</span>
                 </div>
             </div>
             
@@ -453,7 +453,15 @@
                 <h4>Network Topology:</h4>
                 <div class="node-count-control">
                     <label for="node-count-slider">Node Count: <span id="node-count-value">90</span></label>
-                    <input type="range" id="node-count-slider" min="10" max="150" value="90" class="slider">
+                    <input type="range" id="node-count-slider" min="10" max="1000" value="90" class="slider">
+                </div>
+                <div class="node-count-control">
+                    <label for="radius-range-slider">Max Node Radius: <span id="radius-range-value">200</span>px</label>
+                    <input type="range" id="radius-range-slider" min="50" max="400" value="200" class="slider">
+                </div>
+                <div class="node-count-control">
+                    <label for="min-radius-slider">Min Node Radius: <span id="min-radius-value">20</span>px</label>
+                    <input type="range" id="min-radius-slider" min="10" max="150" value="20" class="slider">
                 </div>
                 <div class="topology-buttons">
                     <button id="topology-random" class="topology-button active">
@@ -585,6 +593,8 @@
             
             // Node count configuration
             let nodeCount = 90; // Default node count
+            let maxNodeRadius = 200; // Default max node radius
+            let minNodeRadius = 20; // Default min node radius
             
             // Add event listener for node count slider
             document.getElementById('node-count-slider').addEventListener('input', function() {
@@ -594,6 +604,43 @@
             
             document.getElementById('node-count-slider').addEventListener('change', function() {
                 // Regenerate network with new node count when slider is released
+                generateNetwork(currentTopology);
+            });
+            
+            // Add event listener for max radius range slider
+            document.getElementById('radius-range-slider').addEventListener('input', function() {
+                maxNodeRadius = parseInt(this.value);
+                document.getElementById('radius-range-value').textContent = maxNodeRadius;
+                
+                // Ensure min radius doesn't exceed max radius
+                const minSlider = document.getElementById('min-radius-slider');
+                if (parseInt(minSlider.value) > maxNodeRadius * 0.7) {
+                    minNodeRadius = Math.floor(maxNodeRadius * 0.7);
+                    minSlider.value = minNodeRadius;
+                    document.getElementById('min-radius-value').textContent = minNodeRadius;
+                }
+            });
+            
+            document.getElementById('radius-range-slider').addEventListener('change', function() {
+                // Regenerate network with new radius range when slider is released
+                generateNetwork(currentTopology);
+            });
+            
+            // Add event listener for min radius range slider
+            document.getElementById('min-radius-slider').addEventListener('input', function() {
+                minNodeRadius = parseInt(this.value);
+                document.getElementById('min-radius-value').textContent = minNodeRadius;
+                
+                // Ensure min radius doesn't exceed max radius
+                if (minNodeRadius > maxNodeRadius * 0.7) {
+                    minNodeRadius = Math.floor(maxNodeRadius * 0.7);
+                    this.value = minNodeRadius;
+                    document.getElementById('min-radius-value').textContent = minNodeRadius;
+                }
+            });
+            
+            document.getElementById('min-radius-slider').addEventListener('change', function() {
+                // Regenerate network with new min radius when slider is released
                 generateNetwork(currentTopology);
             });
             
@@ -704,8 +751,26 @@
             });
             
             document.getElementById('btn-reset').addEventListener('click', function() {
-                // Reset visualization
-                resetVisualization();
+                // Save the current ACK tracking
+                const savedAckNodes = window.ackReceivedNodes ? new Set(window.ackReceivedNodes) : new Set();
+                
+                // Reset visualization but keep ACK tracking
+                resetVisualization(false);
+                
+                // Restore ACK tracking
+                window.ackReceivedNodes = savedAckNodes;
+                
+                // Force nodes to refresh colors based on ACK tracking
+                networkGroup.selectAll('.network-node')
+                    .transition()
+                    .duration(300)
+                    .attr('fill', d => {
+                        if (d.id && window.ackReceivedNodes && window.ackReceivedNodes.has(d.id)) return '#9c27b0';
+                        if (d.type === 'source') return '#4caf50';
+                        if (d.type === 'destination') return '#e91e63';
+                        if (d.id === 'E' || d.name.includes('Hub')) return '#ff9800';
+                        return '#ddd';
+                    });
                 
                 // Reset active button state
                 document.querySelectorAll('.control-button').forEach(btn => {
@@ -718,13 +783,17 @@
                 
                 // Reset caption
                 document.getElementById('phase-caption').innerText = 
-                    'Select a routing method to visualize different approaches to mesh networking.';
+                    'Select a routing method to visualize different approaches to mesh networking. Adjust node count and radius range (min/max) to experiment with different network densities.';
             });
             
             // Function to generate network based on topology
             function generateNetwork(topologyType) {
                 // Clear existing network
                 networkGroup.selectAll('*').remove();
+                
+                // Reset ACK tracking
+                window.ackReceivedNodes = new Set();
+                window.ackPhaseStarted = false;
                 
                 // Get topology generator function
                 const topologyGenerator = topologies[topologyType].generate;
@@ -1346,7 +1415,19 @@
             }
             
             function getRandomRange(min, max) {
-                return Math.floor(Math.random() * (max - min + 1)) + min;
+                // Determine the range based on the min and max radius settings
+                const baseMin = min;
+                const baseMax = max;
+                
+                // Scale the range proportionally between minNodeRadius and maxNodeRadius
+                const rangeSpan = baseMax - baseMin;
+                const userRangeSpan = maxNodeRadius - minNodeRadius;
+                
+                // Calculate the scaled values
+                const scaledMin = minNodeRadius + (baseMin / 200) * userRangeSpan;
+                const scaledMax = minNodeRadius + (baseMax / 200) * userRangeSpan;
+                
+                return Math.floor(Math.random() * (scaledMax - scaledMin + 1)) + scaledMin;
             }
             
             function isInRange(nodeA, nodeB) {
@@ -1457,6 +1538,40 @@
                                 if (d.id.length === 1) return 12;
                                 return 8;
                             });
+                            
+                        // Add special ring effect for ACK-received nodes
+                        if (packetData.packetClass === 'packet-ack') {
+                            // Track this node as having received an ACK
+                            if (!window.ackReceivedNodes) {
+                                window.ackReceivedNodes = new Set();
+                            }
+                            window.ackReceivedNodes.add(targetNode.id);
+                            
+                            // Add a pulsing glow effect to the node
+                            const ackPulse = networkGroup.append('circle')
+                                .attr('class', 'ack-pulse')
+                                .attr('cx', targetNode.x)
+                                .attr('cy', targetNode.y)
+                                .attr('r', 12)
+                                .attr('fill', 'none')
+                                .attr('stroke', '#9c27b0')
+                                .attr('stroke-width', 3)
+                                .attr('stroke-opacity', 0.8);
+                                
+                            // Animate the pulse
+                            ackPulse.transition()
+                                .duration(600)
+                                .attr('r', 20)
+                                .attr('stroke-opacity', 0)
+                                .remove();
+                                
+                            // Make sure the node stays purple
+                            networkGroup.selectAll('.network-node')
+                                .filter(d => d.id === targetNode.id)
+                                .transition()
+                                .duration(200)
+                                .attr('fill', '#9c27b0');
+                        }
                     }
                     
                     // Execute the callback
@@ -1492,12 +1607,19 @@
                     return;
                 }
                 
-                // Highlight nodes along the path
+                // Highlight nodes along the path, but preserve purple for ACK-received nodes
                 networkGroup.selectAll('.network-node')
                     .filter(d => path.includes(d.id) && d.id !== 'A' && d.id !== 'Z')
                     .transition()
                     .duration(500)
-                    .attr('fill', '#43a047'); // Meshcore color
+                    .attr('fill', d => {
+                        // Keep ACK-received nodes purple
+                        if (window.ackReceivedNodes && window.ackReceivedNodes.has(d.id)) {
+                            return '#9c27b0';
+                        }
+                        // Otherwise set to MeshCore color
+                        return '#43a047';
+                    });
                 
                 // Create pulsing effect between nodes on the path
                 for (let i = 0; i < path.length - 1; i++) {
@@ -1599,7 +1721,7 @@
                 
                 // Constants to control flooding visualization
                 const MAX_CONCURRENT_ANIMATIONS = 25; // Limit number of concurrent animations
-                const MAX_FLOOD_DEPTH = 7; // Limit flood depth for path discovery (was limited to 3 before)
+                const MAX_FLOOD_DEPTH = 64; // Limit flood depth for path discovery
                 let activeAnimations = 0;
                 const discoveryQueue = []; // Queue for pending discovery broadcasts
                 
@@ -1826,7 +1948,7 @@
                         
                         // Update caption to show ACK phase
                         document.getElementById('phase-caption').innerText = 
-                            'MeshCore Path Discovery: Flooding complete. Sending ACK with optimal path information back to source.';
+                            'MeshCore Path Discovery: Flooding complete. Sending ACK with optimal path information back to source. Nodes that blink red receive the ACK but do not forward it.';
                         
                     // Add a flag to the window object to track if ACK has started
                     if (window.ackPhaseStarted) {
@@ -1892,6 +2014,112 @@
                         
                         // Mark target as receiving ACK to prevent duplicates
                         hasNodeReceivedAck.add(targetId);
+                        
+                        // Find all nodes within range of this node's broadcast and mark them as ACK receivers too
+                        const sourceNode = nodeMap[sourceId];
+                        nodes.forEach(node => {
+                            if (node.id !== sourceId && !hasNodeReceivedAck.has(node.id)) {
+                                // Calculate distance between source and this node
+                                const dx = sourceNode.x - node.x;
+                                const dy = sourceNode.y - node.y;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                
+                                // If within range, mark this node as having received the ACK
+                                if (distance <= sourceNode.range) {
+                                    // Add to global tracking of ACK-received nodes
+                                    if (!window.ackReceivedNodes) {
+                                        window.ackReceivedNodes = new Set();
+                                    }
+                                    window.ackReceivedNodes.add(node.id);
+                                    hasNodeReceivedAck.add(node.id);
+                                    
+                                    // Check if this node is on the optimal path (will broadcast the ACK)
+                                    const isOnOptimalPath = nodesInOptimalPath.has(node.id);
+                                    
+                                    // For nodes not on the optimal path, make them blink red first
+                                    if (!isOnOptimalPath) {
+                                        // First make the node flash red
+                                        networkGroup.selectAll('.network-node')
+                                            .filter(d => d.id === node.id)
+                                            .transition()
+                                            .duration(200)
+                                            .attr('fill', '#dc3545') // Red
+                                            .transition()
+                                            .duration(200)
+                                            .attr('fill', '#aaaaaa') // Gray
+                                            .transition()
+                                            .duration(200)
+                                            .attr('fill', '#dc3545') // Red again
+                                            .transition()
+                                            .duration(300)
+                                            .attr('fill', '#9c27b0'); // Finally purple
+                                        
+                                        // Add red pulse first, followed by purple pulse
+                                        const redPulse = networkGroup.append('circle')
+                                            .attr('class', 'ack-pulse')
+                                            .attr('cx', node.x)
+                                            .attr('cy', node.y)
+                                            .attr('r', 8)
+                                            .attr('fill', 'none')
+                                            .attr('stroke', '#dc3545')
+                                            .attr('stroke-width', 2)
+                                            .attr('stroke-opacity', 0.8);
+                                            
+                                        // Animate the red pulse
+                                        redPulse.transition()
+                                            .duration(400)
+                                            .attr('r', 16)
+                                            .attr('stroke-opacity', 0)
+                                            .remove();
+                                            
+                                        // After a delay, show the purple pulse
+                                        setTimeout(() => {
+                                            const purplePulse = networkGroup.append('circle')
+                                                .attr('class', 'ack-pulse')
+                                                .attr('cx', node.x)
+                                                .attr('cy', node.y)
+                                                .attr('r', 8)
+                                                .attr('fill', 'none')
+                                                .attr('stroke', '#9c27b0')
+                                                .attr('stroke-width', 2)
+                                                .attr('stroke-opacity', 0.6);
+                                                
+                                            // Animate the purple pulse
+                                            purplePulse.transition()
+                                                .duration(600)
+                                                .attr('r', 16)
+                                                .attr('stroke-opacity', 0)
+                                                .remove();
+                                        }, 800);
+                                    } else {
+                                        // Nodes on the optimal path turn purple immediately
+                                        networkGroup.selectAll('.network-node')
+                                            .filter(d => d.id === node.id)
+                                            .transition()
+                                            .duration(300)
+                                            .attr('fill', '#9c27b0');
+                                            
+                                        // Add a pulsing glow effect to the node
+                                        const ackPulse = networkGroup.append('circle')
+                                            .attr('class', 'ack-pulse')
+                                            .attr('cx', node.x)
+                                            .attr('cy', node.y)
+                                            .attr('r', 8)
+                                            .attr('fill', 'none')
+                                            .attr('stroke', '#9c27b0')
+                                            .attr('stroke-width', 2)
+                                            .attr('stroke-opacity', 0.6);
+                                            
+                                        // Animate the pulse
+                                        ackPulse.transition()
+                                            .duration(600)
+                                            .attr('r', 16)
+                                            .attr('stroke-opacity', 0)
+                                            .remove();
+                                    }
+                                }
+                            }
+                        });
                         
                         // Update the source node's signal radius visualization to show it has sent an ACK
                         networkGroup.selectAll('.node-range')
@@ -2472,7 +2700,7 @@
                 window.ackPhaseStarted = false;
                 
                 // Remove all rings and waves
-                networkGroup.selectAll('.packet-ring, .flood-wave').remove();
+                networkGroup.selectAll('.packet-ring, .flood-wave, .ack-pulse').remove();
                 
                 // Clear any existing animations
                 networkGroup.selectAll('.network-node').interrupt();
@@ -2484,12 +2712,18 @@
                     .classed('has-received-message', false)
                     .classed('has-received-ack', false);
                 
-                // Reset node colors and message-received class
+                // Keep track of which nodes have received ACKs
+                if (!window.ackReceivedNodes) {
+                    window.ackReceivedNodes = new Set();
+                }
+                
+                // Reset node colors and message-received class, but keep ACK-received nodes purple
                 networkGroup.selectAll('.network-node')
                     .classed('message-received', false)
                     .transition()
                     .duration(300)
                     .attr('fill', d => {
+                        if (d.id && window.ackReceivedNodes.has(d.id)) return '#9c27b0'; // Keep ACK-received nodes purple
                         if (d.type === 'source') return '#4caf50';
                         if (d.type === 'destination') return '#e91e63';
                         if (d.id === 'E' || d.name.includes('Hub')) return '#ff9800';
@@ -2512,6 +2746,9 @@
                     networkGroup.selectAll('.highlighted-path').classed('highlighted-path', false);
                     // Remove any path highlight lines
                     networkGroup.selectAll('.path-highlight-line').remove();
+                    
+                    // Clear the ACK received nodes set if we're fully resetting
+                    window.ackReceivedNodes = new Set();
                 }
             }
             
@@ -2690,7 +2927,7 @@
                 
                 // Reset caption
                 document.getElementById('phase-caption').innerText = 
-                    'Select a routing method to visualize different approaches to mesh networking.';
+                    'Select a routing method to visualize different approaches to mesh networking. Adjust node count and radius range (min/max) to experiment with different network densities.';
                 
                 // Reset metrics
                 resetMetrics();
