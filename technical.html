@@ -26,19 +26,22 @@
     </nav>
 
     <main class="container">
+        <div class="disclaimer-banner" role="note">
+            <strong>Disclaimer:</strong> This analysis and interactive simulator are AI-generated for educational and informational purposes only. This site is independent and is not affiliated with, endorsed by, or officially associated with Meshtastic or MeshCore.
+        </div>
         <section id="version-info">
             <h2>Version Information</h2>
             <div class="two-columns">
                 <div class="column">
                     <h3 class="meshtastic-header">Meshtastic</h3>
                     <div class="technical-section">
-                        <p>This analysis is based on Meshtastic firmware <strong>v2.6.4</strong> (as of May 2025)</p>
+                        <p>The original notes sampled firmware <strong>v2.6.4.b89355f</strong> (29 March 2025). Checked again against stable <strong>v2.7.26</strong> (23 June 2026) and <strong>develop</strong> at the 2.8 prerelease (November 2026).</p>
                         <div class="repo-links">
                             <a href="https://github.com/meshtastic/firmware" target="_blank" class="button">
                                 <i class="fab fa-github"></i> Firmware Repository
                             </a>
-                            <a href="https://github.com/meshtastic/meshtastic" target="_blank" class="button">
-                                <i class="fab fa-github"></i> Documentation Repository
+                            <a href="https://meshtastic.org/docs/overview/mesh-algo/" target="_blank" class="button">
+                                <i class="fas fa-book"></i> Managed flooding docs
                             </a>
                         </div>
                     </div>
@@ -47,12 +50,46 @@
                 <div class="column">
                     <h3 class="meshcore-header">MeshCore</h3>
                     <div class="technical-section">
-                        <p>This analysis is based on MeshCore <strong>v1.6.0</strong> (as of May 2025)</p>
+                        <p>The original notes sampled companion <strong>v1.6.0</strong> (9 May 2025). The same repository is now <strong>meshcore-dev/MeshCore</strong>. Latest companion, repeater, and room-server releases checked here are <strong>v1.18.0</strong> (15 October 2026).</p>
                         <div class="repo-links">
-                            <a href="https://github.com/ripplebiz/MeshCore" target="_blank" class="button">
-                                <i class="fab fa-github"></i> Repository
+                            <a href="https://github.com/meshcore-dev/MeshCore" target="_blank" class="button">
+                                <i class="fab fa-github"></i> Canonical repository
                             </a>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="since-snapshot">
+            <h2>What changed since the snapshot</h2>
+            <div class="two-columns">
+                <div class="column">
+                    <h3 class="meshtastic-header">Meshtastic v2.6.4 to develop</h3>
+                    <div class="technical-section">
+                        <p>Managed flooding was already in v2.6.4. <code>RadioInterface::getTxDelayMsecWeighted</code> still maps SNR -20..10 onto contention windows 3..8, and clients still cancel when they hear another LoRa copy. The simulator models this along with <code>LONG_FAST</code> packet airtime (~560&nbsp;ms, 28&nbsp;ms slot time), Listen-Before-Talk CAD backoff, and 6&nbsp;dB LoRa capture (matching <code>Meshtasticator</code>).</p>
+                        <ul>
+                            <li><strong>Still true:</strong> broadcasts, and direct messages with no next hop, are managed floods. A known next hop is relayed only by that node (<code>NextHopRouter</code>). Default hop limit is 3 (<code>HOP_RELIABLE</code>). Maximum is 7.</li>
+                            <li><strong>v2.6.4 treated <code>REPEATER</code> like <code>ROUTER</code></strong> (early window, no cancel). Current firmware keeps the early window for <code>ROUTER</code> only. <code>ROUTER_LATE</code> still never cancels, and is clamped to the late window via <code>clampToLateRebroadcastWindow</code>.</li>
+                            <li><strong><code>CLIENT_BASE</code></strong> now refuses to cancel packets to or from a favorited node, and those relays use the late window.</li>
+                            <li><strong>Only LoRa duplicates cancel a relay.</strong> An MQTT copy does not (<code>p-&gt;transport_mechanism == TRANSPORT_LORA</code>).</li>
+                            <li><strong>Hop upgrade:</strong> a later copy with a strictly higher hop limit replaces a pending relay instead of cancelling it.</li>
+                            <li><strong>Favorite routers</strong> (<code>Router::shouldDecrementHopLimit</code> in v2.7+) preserve <code>hop_limit</code> on subsequent hops between favorited <code>ROUTER</code>/<code>ROUTER_LATE</code>/<code>CLIENT_BASE</code> nodes (the first hop <code>hops_away == 0</code> always decrements). Develop (2.8) also adds <code>HopScalingModule</code> adaptive hop limits and gates hop-upgraded packets on a routing-auth check.</li>
+                            <li><strong><code>getCWsize</code> signedness fix:</strong> v2.6.4 declared <code>const uint32_t SNR_MIN = -20</code>; later firmware fixed this to <code>int32_t</code> so 64-bit targets (<code>portduino</code>/native sim) do not wrap negative bounds.</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="column">
+                    <h3 class="meshcore-header">MeshCore v1.6.0 to v1.18.0</h3>
+                    <div class="technical-section">
+                        <p>Direct packets are still forwarded only by the next path hash. Flood packets are still forwarded once by repeaters, not cancelled when another repeater is heard. Repeater <code>rx_delay_base</code> is still 0 by default, so the SNR score delay is off unless an operator sets it.</p>
+                        <ul>
+                            <li><strong>Transport flood and regions.</strong> v1.18 repeaters can drop a flood whose transport code matches no allowed region. Unscoped floods are a separate case.</li>
+                            <li><strong>Separate hop limits</strong> for scoped flood, unscoped flood, and adverts (<code>flood_max</code>, <code>flood_max_unscoped</code>, <code>flood_max_advert</code>). v1.6 had a single <code>flood_max</code>.</li>
+                            <li><strong>Loop detection</strong> can refuse a flood that has already circled (minimal, moderate, or strict).</li>
+                            <li><strong>Multipart payloads</strong> and variable path-hash size were added. Companion radios still do not act as the repeater.</li>
+                            <li><strong>There is not a more popular replacement of this firmware.</strong> ripplebiz/MeshCore was renamed to meshcore-dev/MeshCore; it is the same repository. MeshOS, published for standalone T-Deck-class devices and associated with meshcore.co.uk, is a separate line that speaks the same radio protocol. Its public release repository is far smaller than meshcore-dev/MeshCore.</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -67,80 +104,49 @@
                         <h3>Meshtastic Routing Architecture</h3>
                     </div>
                     <div class="card-body">
-                        <p>Meshtastic utilizes a hybrid routing approach consisting of three main components:</p>
+                        <p>The active router in v2.6.4 was already <code>NextHopRouter</code>, not a naive flood. The old excerpt on this page was an earlier <code>FloodingRouter::perhapsRebroadcast</code> that the firmware was no longer using as the relay decision.</p>
                         <ol>
-                            <li><strong>Flooding Router</strong>: The base routing layer that implements simple flood-based message propagation.</li>
-                            <li><strong>Next Hop Router</strong>: Extends the flooding router with packet acknowledgment and retransmission.</li>
-                            <li><strong>Reliable Router</strong>: Adds additional reliability mechanisms for messages that require acknowledgments.</li>
+                            <li><strong>Managed flood</strong> for broadcasts, and for direct messages that do not yet have a next hop.</li>
+                            <li><strong>Next hop</strong> for a direct message whose next hop is known: only the addressed node relays it.</li>
+                            <li><strong>Reliable retransmission</strong> of packets that still want an acknowledgement.</li>
                         </ol>
                         
-                        <h4>Flooding Mechanism</h4>
-                        <p>When a node receives a packet:</p>
+                        <h4>Managed flooding</h4>
+                        <p>When a node receives a packet it has not seen:</p>
                         <ol>
-                            <li>It checks if it has seen this packet before (using a duplicate detection table)</li>
-                            <li>If new, it decrements the hop limit and, if not zero, rebroadcasts the packet</li>
-                            <li>All nodes in a channel rebroadcast messages regardless of the destination</li>
+                            <li>It relays only if the hop limit is above zero, it is not the sender or the addressed node, and its role is allowed to rebroadcast. <code>CLIENT_MUTE</code> does not relay.</li>
+                            <li>It decrements the hop limit and waits before transmitting. SNR from -20 to +10 maps to a contention window of 3 to 8. A low SNR (far from the sender) draws a short delay. A high SNR waits longer. <code>ROUTER</code> transmits in the early window, <code>random(0, 2 × CW)</code> slots. Everyone else waits out <code>2 × CWmax</code> slots first, then draws <code>random(0, 2^CW)</code>.</li>
+                            <li>If a <code>CLIENT</code> hears another LoRa copy of that packet before its timer, it cancels. <code>ROUTER</code> and <code>ROUTER_LATE</code> do not cancel. <code>ROUTER_LATE</code> is held in the late window.</li>
                         </ol>
+                        <p>One transmission is heard by every neighbor in range. Counting a packet per neighbor, or relaying from every node that heard it, is not what the firmware does.</p>
                         
                         <div class="code-section">
-                            <h5>FloodingRouter Implementation <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/FloodingRouter.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
-                            <pre><code class="language-cpp">void FloodingRouter::perhapsRebroadcast(const meshtastic_MeshPacket *p)
-{
-    // Never rebroadcast from the phone
-    if (!iface) {
-        LOG_DEBUG("No interface - dropping rebroadcast\n");
-        return;
-    }
-
-    // Note: if the packet originates from the local node, do not rebroadcast as the Routing layer has already 
-    // done that if it needs to. (previously this was causing duplicate rebroadcasts and interference)
-    if (shouldFilterReceived(p) || p->from == getNodeNum()) {
-        LOG_DEBUG("Dropping rebroadcast of received, from=0x%x, to=0x%x\n", p->from, p->to);
-        return;
-    }
-
-    if (iface->findInTxQueue(p->from, p->id)) {
-        LOG_DEBUG("This same packet is still in the TX queue - we will relayer anyway\n");
-    }
-
-    // Is this message destined for or from us? Then don't rebroadcast
-    NodeNum ourNode = getNodeNum();
-    if (p->to == ourNode || p->from == ourNode) {
-        LOG_DEBUG("Dropping rebroadcast of our message, from=0x%x, to=0x%x\n", p->from, p->to);
-        return;
-    }
-
-    // If the message is a broadcast or destined for our node, rebroadcast
-    // broadcasts and messages directed to the phone always have max_hop_limit
-    if (loopbackBroadcastsToPhone(config.lora.loopback_broadcasts_to_phone) ? isBroadcast(p->to) : p->to == NODENUM_BROADCAST) {
-        // Treat messages that arrive without a hop_limit included as having a default of 3
-        auto hopLimit = Default::getHopLimit(p);
-        if (hopLimit > 0) {
-            // rebroadcasting a broadcast packet
-            LOG_DEBUG("Rebroadcasting broadcast message, from=0x%x, id=0x%x, hopLimit=%d\n", p->from, p->id, hopLimit);
-            auto newP = packetPool.allocCopy(*p);
-            newP->hop_limit = hopLimit - 1; // bump down the hop count
-            iface->sendTo(newP);
-        } else {
-            LOG_DEBUG("Not rebroadcasting broadcast message, from=0x%x, id=0x%x, hopLimit=0\n", p->from, p->id);
-        }
-    }
+                            <h5>Who cancels a duplicate <a href="https://github.com/meshtastic/firmware/blob/develop/src/mesh/FloodingRouter.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">// ROUTER and ROUTER_LATE always rebroadcast.
+// CLIENT_BASE does too, for packets to or from a favorited node.
+// Every other role cancels when another station's LoRa rebroadcast is heard.
+bool FloodingRouter::roleAllowsCancelingDupe(const meshtastic_MeshPacket *p);</code></pre>
+                            <h5>Who is allowed to relay <a href="https://github.com/meshtastic/firmware/blob/v2.6.4.b89355f/src/mesh/NextHopRouter.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">// v2.6.4 NextHopRouter::perhapsRelay, still the rule on develop:
+// relay only when next_hop is unset, or next_hop is this node.
+if (p->next_hop == NO_NEXT_HOP_PREFERENCE ||
+    p->next_hop == nodeDB->getLastByteOfNodeNum(getNodeNum())) {
+    // decrement hop_limit and send
 }</code></pre>
                         </div>
                         
                         <h4>Packet Retransmission Logic</h4>
-                        <p>Meshtastic implements retransmission for reliability:</p>
+                        <p>Reliable packets are queued until they are acknowledged or the retry count runs out:</p>
                         <ul>
-                            <li>Intermediate nodes perform up to 2 retransmissions</li>
-                            <li>Original senders perform up to 3 retransmissions for reliable messages</li>
-                            <li>Packets are stored in a pending retransmission queue until acknowledgment or timeout</li>
+                            <li>In v2.6.4 and v2.7.26, <code>NUM_INTERMEDIATE_RETX</code> is 2. On develop (2.8) it is 3. The queued count is one less than that constant, because the first send already happened.</li>
+                            <li>The original sender's <code>NUM_RELIABLE_RETX</code> is still 3.</li>
+                            <li>Hearing the packet again stops a pending retry, except where the node was the explicit next hop.</li>
                         </ul>
                         
                         <div class="code-section">
                             <h5>NextHopRouter Constants <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/NextHopRouter.h" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
-                            <pre><code class="language-cpp">// The number of retransmissions intermediate nodes will do (actually 1 less than this)
-constexpr static uint8_t NUM_INTERMEDIATE_RETX = 2;
-// The number of retransmissions the original sender will do
+                            <pre><code class="language-cpp">// develop (2.8). v2.6.4 and v2.7.26 used 2 for the intermediate count.
+constexpr static uint8_t NUM_INTERMEDIATE_RETX = 3;
 constexpr static uint8_t NUM_RELIABLE_RETX = 3;</code></pre>
                         </div>
                         
@@ -175,7 +181,7 @@ constexpr static uint8_t NUM_RELIABLE_RETX = 3;</code></pre>
                         <h3>MeshCore Routing Architecture</h3>
                     </div>
                     <div class="card-body">
-                        <p>MeshCore employs a more selective routing approach with distinct routing modes:</p>
+                        <p>MeshCore repeaters use three route types. Companion radios originate and receive; they are not the repeater firmware:</p>
                         <ol>
                             <li><strong>Flood Routing</strong>: Similar to Meshtastic but with priority-based retransmission</li>
                             <li><strong>Direct Routing</strong>: Path-specific routing with selective forwarding</li>
@@ -280,10 +286,10 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
                     <h3 class="meshtastic-header">Meshtastic Network Capacity</h3>
                     <div class="technical-section">
                         <h4>Broadcast Storm Risk</h4>
-                        <p>With 50,000 active users, Meshtastic's flood-based routing would create significant congestion:</p>
+                        <p>A channel with tens of thousands of people sending at once can still congest. That is not because every node retransmits every packet:</p>
                         <ul>
-                            <li>Each message potentially propagates to every node within hop limits</li>
-                            <li>With default settings, congestion scaling would help but might not be sufficient</li>
+                            <li>Each client schedules one relay, then cancels it if another node transmits that packet first. Routers do transmit</li>
+                            <li>Congestion scaling slows ordinary clients as the node list grows. It does not create extra airtime</li>
                         </ul>
                         
                         <h4>Resource Utilization</h4>
@@ -301,7 +307,7 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
                         <ul>
                             <li>Meshtastic implements hop limits (typically 3-7 hops)</li>
                             <li>Role-based prioritization helps critical nodes like ROUTER maintain function</li>
-                            <li>Less effective at discarding unnecessary retransmissions</li>
+                            <li>Client relays are cancelled once another copy is heard. Routers keep theirs, by design</li>
                         </ul>
                     </div>
                 </div>
@@ -331,7 +337,7 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
   // More implementation...
 }</code></pre>
                         </div>
-                        <p>Only forwards packets that are specifically destined via that node:</p>
+                        <p>Direct packets are forwarded only by the next hop on the path. Flood packets are still forwarded by each repeater that has not hit the flood hop limit, region filter, or loop check:</p>
                         <ul>
                             <li>Significantly reduces network-wide traffic compared to flooding</li>
                             <li>Well-suited for dense node deployments</li>
@@ -420,7 +426,7 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
                     <div class="technical-section">
                         <ol>
                             <li><strong>Increase Router Density</strong>: Deploy more router/repeater nodes with strategic placement</li>
-                            <li><strong>Reduce Default Hop Limit</strong>: Consider reducing from default 3-7 to 2-3 hops</li>
+                            <li><strong>Hop limit</strong>: The default is 3 and the maximum is 7. Lowering the configured value shortens relay depth</li>
                             <li><strong>Strengthen Congestion Scaling</strong>: More aggressive scaling at high node counts</li>
                             <li><strong>Implement Priority-Based Queuing</strong>: Critical messages should have transmission priority</li>
                         </ol>
@@ -444,7 +450,7 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
         <section id="conclusion">
             <h2>Technical Conclusion</h2>
             <p>In a large-scale disaster scenario with 50,000 users across 1,000 nodes in 300 km²:</p>
-            <p><strong>Meshtastic</strong> would provide more immediate message propagation through its aggressive flooding mechanism, but would likely suffer from significant congestion and packet loss. It would perform best in the immediate aftermath when node count is lower and redundancy is critical.</p>
+            <p><strong>Meshtastic</strong> broadcasts with managed flooding, so a packet is not retransmitted by every node that hears it. A busy channel can still run out of airtime. Direct messages switch to a single next hop once that hop has been learned.</p>
             <p><strong>MeshCore</strong> would offer more sustainable communication over time through its selective routing and prioritization schemes. While initial path discovery might take longer, the network would maintain higher throughput once paths are established, especially with strategic room server placement.</p>
             <p>For maximum resilience, a hybrid deployment could leverage Meshtastic's flooding for critical emergency messages and MeshCore's selective routing for sustained communication channels.</p>
         </section>
@@ -452,7 +458,7 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
 
     <footer>
         <div class="container">
-            <p>&copy; 2023 Mesh Networking Comparison. This is for informational purposes only.</p>
+            <p>AI-generated analysis for educational purposes only. Not affiliated with Meshtastic or MeshCore.</p>
             <div class="footer-links">
                 <a href="index.html">Overview</a>
                 <a href="technical.html">Technical Details</a>

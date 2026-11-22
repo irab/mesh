@@ -30,6 +30,9 @@
     </nav>
 
     <main class="container">
+        <div class="disclaimer-banner" role="note">
+            <strong>Disclaimer:</strong> This analysis and interactive simulator are AI-generated for educational and informational purposes only. This site is independent and is not affiliated with, endorsed by, or officially associated with Meshtastic or MeshCore.
+        </div>
         <section id="overview">
             <h2>Overview</h2>
             <div class="card-container">
@@ -93,7 +96,7 @@
                         </tr>
                         <tr>
                             <td><strong>Routing Method</strong></td>
-                            <td>Flood-based broadcasting with hop limits</td>
+                            <td>Managed flooding: SNR contention window, cancel if another node already relayed, hop limit. Known next hops do not flood</td>
                             <td>Selective forwarding with priority-based routing</td>
                         </tr>
                         <tr>
@@ -140,7 +143,7 @@
                         <div class="comparison-container">
                             <div class="comparison-item">
                                 <h4>Meshtastic</h4>
-                                <p>Uses a hybrid approach with three layers: Flooding Router (base), Next Hop Router (for acknowledgments), and Reliable Router (for messages requiring guaranteed delivery). Messages propagate through the network with high redundancy but potentially higher congestion.</p>
+                                <p>Broadcasts use managed flooding. A client waits a contention window scaled by the received SNR, so a farther node tends to relay first, and cancels that relay if it hears another copy. ROUTER nodes relay in an earlier window and do not cancel. A direct message with a learned next hop is relayed only by that hop. This was already the live path in the v2.6.4 snapshot, via NextHopRouter, not an every-node rebroadcast.</p>
                             </div>
                             <div class="comparison-item">
                                 <h4>MeshCore</h4>
@@ -152,7 +155,7 @@
                             <h4>Routing Mechanisms Compared</h4>
                             <div class="diagram-container">
                                 <div class="diagram meshtastic-diagram">
-                                    <h5>Meshtastic Flooding Approach</h5>
+                                    <h5>Meshtastic Managed Flood</h5>
                                     <div class="animation-container">
                                         <div class="node source-node">A</div>
                                         <div class="node">B</div>
@@ -164,7 +167,7 @@
                                         <div class="message-particle meshtastic-particle-2"></div>
                                         <div class="message-particle meshtastic-particle-3"></div>
                                     </div>
-                                    <p>Messages flood through all available paths to reach the destination, maximizing delivery probability but creating potential congestion</p>
+                                    <p>Sketch only. The interactive view shows the real rule: most clients that hear a packet do not transmit it again.</p>
                                 </div>
                                 
                                 <div class="diagram meshcore-diagram">
@@ -214,7 +217,7 @@
                         <div class="comparison-container">
                             <div class="comparison-item">
                                 <h4>Meshtastic</h4>
-                                <p>When a radio receives a packet, it checks if it has seen the packet before. If not, it will rebroadcast it. Each rebroadcast decreases the hop limit by one, and packets with a hop limit of zero are not rebroadcast.</p>
+                                <p>A new packet with hop limit left is scheduled for one rebroadcast. The wait is short after a weak SNR and long after a strong SNR, and clients start only after the router window. If a client hears another node rebroadcast that packet first, it cancels. Hop limit 0 is not rebroadcast. Routers do not cancel.</p>
                             </div>
                             <div class="comparison-item">
                                 <h4>MeshCore</h4>
@@ -252,7 +255,7 @@
                         <div class="comparison-container">
                             <div class="comparison-item">
                                 <h4>Meshtastic</h4>
-                                <p>Scales message intervals based on network size, with special handling for router/repeater nodes and trackers/sensors. Uses message deduplication and hop limits to control congestion.</p>
+                                <p>Managed flooding drops redundant client relays. Hop limit and duplicate detection bound the rest. Router and tracker roles are not scaled back the way ordinary clients are as the node list grows.</p>
                             </div>
                             <div class="comparison-item">
                                 <h4>MeshCore</h4>
@@ -313,9 +316,9 @@
                     </div>
                     <div class="card-body">
                         <ul>
-                            <li>Risk of broadcast storms and significant congestion with many users</li>
+                            <li>Many simultaneous senders can still congest the channel. Managed flooding stops duplicate client relays; it does not remove every transmission</li>
                             <li>Limited ability to prioritize critical messages during high traffic</li>
-                            <li>Potential for significant packet loss as network scales</li>
+                            <li>Hop limit, duplicate history, and airtime still bound how far and how often a packet is repeated</li>
                         </ul>
                     </div>
                 </div>
@@ -391,7 +394,7 @@
 
         <section id="conclusion">
             <h2>Conclusion</h2>
-            <p>Both Meshtastic and MeshCore provide off-grid mesh communication solutions using LoRa technology, but they take different approaches. Meshtastic offers a more established ecosystem with full open-source implementation and better immediate delivery through aggressive flooding, while MeshCore provides a lighter-weight alternative with more efficient routing and some unique features like room servers for persistent storage.</p>
+            <p>Both Meshtastic and MeshCore provide off-grid mesh communication using LoRa, with different routing. Meshtastic broadcasts use managed flooding: clients cancel a relay when another node has already transmitted that packet, and a learned direct-message next hop does not flood. MeshCore repeaters forward a flood once, then carry later traffic as direct packets along a path. Room servers add persistent storage.</p>
             <p>For disaster scenarios, Meshtastic may perform better in the immediate aftermath when redundancy is critical, while MeshCore could provide more sustainable communication over time as the network stabilizes. The ideal solution might combine elements of both approaches or deploy them in complementary roles based on the specific requirements of the deployment area and expected user density.</p>
         </section>
 
@@ -399,15 +402,16 @@
             <h2>Latest Version Comparison</h2>
             <div class="version-box">
                 <div class="version-badge meshtastic">
-                    <span class="version-tag">v2.6.4</span>
+                    <span class="version-tag">v2.7.26</span>
                     <h3>Meshtastic</h3>
                 </div>
                 <h3 class="vs">VS</h3>
                 <div class="version-badge meshcore">
-                    <span class="version-tag">v1.6.0</span>
+                    <span class="version-tag">v1.18.0</span>
                     <h3>MeshCore</h3>
                 </div>
             </div>
+            <p>The original write-up sampled Meshtastic v2.6.4 (March 2025) and MeshCore companion v1.6.0 (May 2025). Managed flooding was already in that Meshtastic snapshot. Current stable firmware is Meshtastic v2.7.26 (June 2026); firmware develop is the 2.8 prerelease. MeshCore's canonical repo is now meshcore-dev/MeshCore, companion v1.18.0 (October 2026).</p>
             <a href="technical.html" class="button">See Technical Comparison</a>
         </section>
         
@@ -422,7 +426,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2023 Mesh Networking Comparison. This is for informational purposes only.</p>
+            <p>AI-generated analysis for educational purposes only. Not affiliated with Meshtastic or MeshCore.</p>
             <div class="footer-links">
                 <a href="index.html">Overview</a>
                 <a href="technical.html">Technical Details</a>

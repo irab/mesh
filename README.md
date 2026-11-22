@@ -51,6 +51,6 @@ Then visit `http://localhost:8000` in your browser.
 
 The content in this site is based on technical analysis of the Meshtastic and MeshCore code repositories, with a focus on the routing architectures and their performance in large-scale disaster scenarios.
 
-## License
+## Disclaimer & License
 
-This documentation is provided for informational purposes only. Meshtastic and MeshCore are separate projects with their own licenses. 
+This analysis and interactive simulator are AI-generated for educational and informational purposes only. This project is independent and is not affiliated with, endorsed by, or officially associated with Meshtastic or MeshCore. Meshtastic and MeshCore are separate projects with their own licenses.

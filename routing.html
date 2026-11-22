@@ -170,6 +170,58 @@
         .flood-wave.meshcore-wave {
             stroke: var(--meshcore-color);
         }
+
+        .flood-wave.ack-wave {
+            stroke: #9c27b0;
+            stroke-dasharray: 5,3;
+        }
+
+        .meshtastic-sim-controls {
+            margin-top: 0.9rem;
+            padding-top: 0.85rem;
+            border-top: 1px solid #e0e6ed;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            align-items: center;
+            gap: 0.9rem 1.25rem;
+            font-size: 0.9rem;
+        }
+
+        .meshtastic-sim-controls .sim-field {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+        }
+
+        .meshtastic-sim-controls select {
+            padding: 0.3rem 0.55rem;
+            border-radius: 4px;
+            border: 1px solid #cfd8dc;
+            background: #fff;
+            font-size: 0.88rem;
+            color: #263238;
+        }
+
+        .meshtastic-sim-controls input[type="range"] {
+            width: 110px;
+        }
+
+        .relay-cancelled {
+            fill: none;
+            stroke: #455a64;
+            stroke-width: 2;
+            stroke-dasharray: 3,2;
+            pointer-events: none;
+        }
+
+        .algorithm-note {
+            max-width: 760px;
+            margin: 0.5rem auto 0;
+            color: #37474f;
+            font-size: 0.95rem;
+            line-height: 1.45;
+        }
         
         .node-range {
             fill-opacity: 0.1;
@@ -396,9 +448,12 @@
     </nav>
 
     <main class="container">
+        <div class="disclaimer-banner" role="note">
+            <strong>Disclaimer:</strong> This analysis and interactive simulator are AI-generated for educational and informational purposes only. This site is independent and is not affiliated with, endorsed by, or officially associated with Meshtastic or MeshCore.
+        </div>
         <section id="routing">
             <h2>Mesh Network Routing Visualization</h2>
-            <p>This interactive visualization demonstrates the different routing approaches used by Meshtastic and MeshCore. Use the controls below to explore how packets are routed through the network.</p>
+            <p>This interactive visualization demonstrates the different routing approaches used by Meshtastic and MeshCore. The Meshtastic view is one channel broadcast using managed flooding: most clients that hear the packet do not transmit it again.</p>
             
             <div class="legend">
                 <div class="legend-item">
@@ -412,6 +467,18 @@
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #fd7e14;"></div>
                     <span>Discovery Wave</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ffb74d;"></div>
+                    <span>Waiting in the SNR window</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ef6c00; border: 2px solid #e65100;"></div>
+                    <span>ROUTER relay (does not cancel)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #66bb6a; border: 2px dashed #455a64;"></div>
+                    <span>Heard it, relay cancelled</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #dc3545;"></div>
@@ -433,7 +500,7 @@
             
             <div class="controls">
                 <button id="btn-meshtastic" class="control-button meshtastic active">
-                    <i class="fas fa-broadcast-tower"></i> Meshtastic Flooding
+                    <i class="fas fa-broadcast-tower"></i> Meshtastic Managed Flood
                 </button>
                 <button id="btn-meshcore-phase1" class="control-button meshcore">
                     <i class="fas fa-search"></i> MeshCore Path Discovery
@@ -480,6 +547,48 @@
                         <i class="fas fa-asterisk"></i> Star
                     </button>
                 </div>
+                <div class="meshtastic-sim-controls" id="meshtastic-sim-controls">
+                    <div class="sim-field">
+                        <label for="lora-preset"><strong>LoRa PHY:</strong></label>
+                        <select id="lora-preset">
+                            <option value="LONG_FAST" selected>SF11 / BW250 (Meshtastic LONG_FAST)</option>
+                            <option value="SF10_250">SF10 / BW250 (MeshCore Default)</option>
+                            <option value="MEDIUM_FAST">SF9 / BW250 (MEDIUM_FAST)</option>
+                        </select>
+                    </div>
+                    <div class="sim-field">
+                        <label for="payload-size"><strong>Message Size:</strong></label>
+                        <select id="payload-size">
+                            <option value="20" selected>20 B text (short)</option>
+                            <option value="60">60 B text (medium)</option>
+                            <option value="140">140 B text (long)</option>
+                        </select>
+                    </div>
+                    <div class="sim-field">
+                        <label for="meshtastic-mode"><strong>Meshtastic Traffic:</strong></label>
+                        <select id="meshtastic-mode">
+                            <option value="broadcast" selected>Channel Broadcast (Managed Flood)</option>
+                            <option value="dm-first">Direct Message — 1st Send (Flood + ACK)</option>
+                            <option value="dm-nexthop">Direct Message — Learned Next-Hop (1-byte)</option>
+                        </select>
+                    </div>
+                    <div class="sim-field">
+                        <label for="hop-limit-slider"><strong>Hop Limit:</strong> <span id="hop-limit-value">7</span> <small style="color:#607d8b;">(default 3, max 7)</small></label>
+                        <input type="range" id="hop-limit-slider" min="1" max="7" value="7">
+                    </div>
+                    <div class="sim-field">
+                        <label for="meshtastic-roles"><strong>Roles:</strong></label>
+                        <select id="meshtastic-roles">
+                            <option value="strategic" selected>Strategic ROUTER (~5% hubs)</option>
+                            <option value="router-late">ROUTER_LATE (~5% hubs, late window)</option>
+                            <option value="clients-only">All CLIENT (no dedicated routers)</option>
+                        </select>
+                    </div>
+                    <div class="sim-field" title="Firmware v2.7+ Router::shouldDecrementHopLimit: consecutive favorite ROUTER/ROUTER_LATE/CLIENT_BASE relays after hop 1 preserve hop_limit">
+                        <input type="checkbox" id="preserve-router-hops">
+                        <label for="preserve-router-hops">Zero-cost favorite ROUTER hops (v2.7+)</label>
+                    </div>
+                </div>
             </div>
             
             <div class="visualization-container" id="network-visualization">
@@ -487,27 +596,37 @@
             </div>
             
             <div class="phase-caption" id="phase-caption">
-                Meshtastic Flooding: Radio signals propagate through all nodes within range, which rebroadcast once per message to maximize delivery probability.
+                Meshtastic managed flooding: discrete-event LoRa PHY/MAC with real Semtech airtime, byte/bit accounting, CSMA/CAD, 6dB capture, and SNR-weighted contention.
             </div>
+            <p class="algorithm-note">Both Meshtastic and MeshCore run on the exact same LoRa modem preset and Semtech SX126x airtime formula so propagation time, on-air bits, and total channel airtime compare apples-to-apples. <em>Note:</em> Node Count and Radius (px) are abstract density and hop-depth knobs for exploring routing mechanics — not real-world RF link budgets.</p>
             
             <div class="performance-metrics">
                 <div class="metric-card">
-                    <div class="metric-label">Total Packets Sent</div>
+                    <div class="metric-label" id="metric-packets-label">Radio Transmissions</div>
                     <div class="metric-value" id="metric-packets">0</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-label">Network Efficiency</div>
-                    <div class="metric-value" id="metric-efficiency">0%</div>
+                    <div class="metric-label" id="metric-bytes-label">On-Air Data (Bytes / Bits)</div>
+                    <div class="metric-value" id="metric-bytes">0 B</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-label">Delivery Time</div>
-                    <div class="metric-value" id="metric-time">0ms</div>
+                    <div class="metric-label" id="metric-time-label">Propagation Time (A→Z)</div>
+                    <div class="metric-value" id="metric-time">—</div>
                 </div>
                 <div class="metric-card">
-                    <div class="metric-label">Hops Required</div>
-                    <div class="metric-value" id="metric-hops">0</div>
+                    <div class="metric-label" id="metric-airtime-label">Total Channel Airtime</div>
+                    <div class="metric-value" id="metric-airtime">0ms</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label" id="metric-efficiency-label">Relays Suppressed</div>
+                    <div class="metric-value" id="metric-efficiency">0</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label" id="metric-hops-label">Radio Hops to Z</div>
+                    <div class="metric-value" id="metric-hops">—</div>
                 </div>
             </div>
+            <div id="comparison-table-host"></div>
         </section>
         
         <section id="routing-comparison">
@@ -515,13 +634,13 @@
             
             <div class="compare-container">
                 <div class="compare-item compare-meshtastic">
-                    <h3>Meshtastic Flooding Approach</h3>
+                    <h3>Meshtastic Managed Flooding</h3>
                     <ul>
-                        <li><strong>High redundancy:</strong> Messages are sent to all nodes within range, which rebroadcast to their neighbors</li>
-                        <li><strong>Simple implementation:</strong> No complex routing tables or path discovery needed</li>
-                        <li><strong>Higher delivery probability:</strong> Multiple paths increase chances of message delivery</li>
-                        <li><strong>Bandwidth intensive:</strong> Network congestion increases with the number of nodes</li>
-                        <li><strong>No path optimization:</strong> Uses the same bandwidth regardless of optimal paths</li>
+                        <li><strong>Listen before relay:</strong> A client schedules one relay, then cancels it if another node transmits the same packet first</li>
+                        <li><strong>Far nodes first:</strong> Weaker SNR gets a shorter contention window, so the node farther from the sender tends to relay before nearby nodes</li>
+                        <li><strong>Routers are the exception:</strong> A ROUTER relays in an earlier window and does not cancel when it hears another copy</li>
+                        <li><strong>Hop limit:</strong> The default is 3. A packet heard with hop limit 0 is not relayed. The maximum is 7</li>
+                        <li><strong>Known next hop:</strong> After a direct message learns its next hop, only that hop relays. Channel broadcasts keep using managed flooding</li>
                     </ul>
                 </div>
                 
@@ -539,7 +658,7 @@
             
             <div class="technical-section">
                 <h3>Network Performance Considerations</h3>
-                <p>The choice between flooding and selective routing depends on several factors:</p>
+                <p>Managed flooding still uses airtime for every relay that is not cancelled, so many simultaneous senders can congest a channel. It does not retransmit from every node that heard the packet. Selective routing avoids that fan-out once a path is known:</p>
                 <ul>
                     <li><strong>Network density:</strong> Dense networks benefit more from selective routing to reduce congestion</li>
                     <li><strong>Node reliability:</strong> Unreliable or mobile nodes may benefit from flooding's redundancy</li>
@@ -552,7 +671,7 @@
 
     <footer>
         <div class="container">
-            <p>&copy; 2023 Mesh Networking Comparison. This is for informational purposes only.</p>
+            <p>AI-generated analysis for educational purposes only. Not affiliated with Meshtastic or MeshCore.</p>
             <div class="footer-links">
                 <a href="index.html">Overview</a>
                 <a href="routing.html">Routing</a>
@@ -561,6 +680,7 @@
         </div>
     </footer>
 
+    <script src="managed-flood.js"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // D3.js visualization code
@@ -679,6 +799,8 @@
             // Generate network based on selected topology
             let nodes = [];
             let links = [];
+            let lastMeshCoreLearnedPath = null;
+            let lastMeshCoreRepeaters = null;
             generateNetwork(currentTopology);
             
             // Event listeners for topology buttons
@@ -724,8 +846,8 @@
                 });
                 this.classList.add('active');
                 
-                // Run MeshCore path discovery simulation
-                animateMeshcoreDiscovery();
+                // Run discrete-event MeshCore path discovery simulation
+                runMeshCoreDiscrete('discovery');
             });
             
             document.getElementById('btn-meshcore-phase2').addEventListener('click', function() {
@@ -735,8 +857,8 @@
                 });
                 this.classList.add('active');
                 
-                // Run MeshCore direct routing simulation
-                animateMeshcoreDirectRouting();
+                // Run discrete-event MeshCore direct routing simulation
+                runMeshCoreDiscrete('direct');
             });
             
             document.getElementById('btn-compare').addEventListener('click', function() {
@@ -791,9 +913,11 @@
                 // Clear existing network
                 networkGroup.selectAll('*').remove();
                 
-                // Reset ACK tracking
+                // Reset ACK tracking and cached MeshCore state for new topology
                 window.ackReceivedNodes = new Set();
                 window.ackPhaseStarted = false;
+                lastMeshCoreLearnedPath = null;
+                lastMeshCoreRepeaters = null;
                 
                 // Get topology generator function
                 const topologyGenerator = topologies[topologyType].generate;
@@ -1341,7 +1465,8 @@
                         tooltip.transition()
                             .duration(200)
                             .style('opacity', 0.9);
-                        tooltip.html(`${d.name}<br>Range: ${d.range}px`)
+                        const roleLine = d.role ? `<br>Role: ${d.role}` : '';
+                        tooltip.html(`${d.name}<br>Range: ${d.range}px${roleLine}`)
                             .style('left', (event.pageX + 10) + 'px')
                             .style('top', (event.pageY - 28) + 'px');
                     })
@@ -1367,6 +1492,19 @@
                     .text(d => d.id);
             }
             
+            function formatBytesBits(bytes) {
+                if (!bytes) return '0 B (0 b)';
+                const bits = bytes * 8;
+                const bStr = bytes >= 1000 ? `${(bytes / 1000).toFixed(2)} kB` : `${bytes} B`;
+                const bitStr = bits >= 1000 ? `${(bits / 1000).toFixed(1)} kb` : `${bits} b`;
+                return `${bStr} (${bitStr})`;
+            }
+
+            function formatMs(ms) {
+                if (ms == null) return '—';
+                return ms >= 1000 ? `${(ms / 1000).toFixed(2)}s` : `${Math.round(ms)}ms`;
+            }
+
             // Reset metrics display
             function resetMetrics() {
                 metrics = {
@@ -1378,12 +1516,25 @@
                 
                 // Update display
                 document.getElementById('metric-packets').textContent = '0';
-                document.getElementById('metric-efficiency').textContent = '0%';
-                document.getElementById('metric-time').textContent = '0ms';
-                document.getElementById('metric-hops').textContent = '0';
+                document.getElementById('metric-bytes').textContent = '0 B (0 b)';
+                document.getElementById('metric-time').textContent = '—';
+                document.getElementById('metric-airtime').textContent = '0ms';
+                document.getElementById('metric-efficiency').textContent = '0';
+                document.getElementById('metric-hops').textContent = '—';
             }
             
             // Update metrics
+            function setMetricMode(mode) {
+                const labels = mode === 'meshcore'
+                    ? ['Radio Transmissions', 'On-Air Data (Bytes / Bits)', 'Propagation Time (A→Z)', 'Total Channel Airtime', 'Active Repeaters', 'Radio Hops to Z']
+                    : ['Radio Transmissions', 'On-Air Data (Bytes / Bits)', 'Propagation Time (A→Z)', 'Total Channel Airtime', 'Relays Suppressed', 'Radio Hops to Z'];
+                ['metric-packets-label', 'metric-bytes-label', 'metric-time-label', 'metric-airtime-label', 'metric-efficiency-label', 'metric-hops-label']
+                    .forEach((id, index) => {
+                        const el = document.getElementById(id);
+                        if (el) el.textContent = labels[index];
+                    });
+            }
+
             function updateMetrics(data) {
                 // Update metrics object
                 Object.assign(metrics, data);
@@ -1392,13 +1543,30 @@
                 if ('packetsSent' in data) {
                     document.getElementById('metric-packets').textContent = metrics.packetsSent;
                 }
-                if ('efficiency' in data) {
+                if ('bytesText' in data) {
+                    document.getElementById('metric-bytes').textContent = data.bytesText;
+                } else if ('totalBytes' in data) {
+                    document.getElementById('metric-bytes').textContent = formatBytesBits(data.totalBytes);
+                }
+                if ('airtimeMs' in data) {
+                    document.getElementById('metric-airtime').textContent = formatMs(data.airtimeMs);
+                }
+                if ('efficiencyText' in data) {
+                    document.getElementById('metric-efficiency').textContent = data.efficiencyText;
+                } else if ('cancelled' in data) {
+                    document.getElementById('metric-efficiency').textContent = metrics.cancelled;
+                } else if ('efficiency' in data) {
                     document.getElementById('metric-efficiency').textContent = `${Math.round(metrics.efficiency * 100)}%`;
                 }
-                if ('deliveryTime' in data) {
-                    document.getElementById('metric-time').textContent = `${metrics.deliveryTime}ms`;
+                if ('deliveryText' in data) {
+                    document.getElementById('metric-time').textContent = data.deliveryText;
+                } else if ('deliveryTime' in data) {
+                    const unit = data.deliveryUnit != null ? data.deliveryUnit : 'ms';
+                    document.getElementById('metric-time').textContent = `${metrics.deliveryTime}${unit}`;
                 }
-                if ('hopsRequired' in data) {
+                if ('hopsText' in data) {
+                    document.getElementById('metric-hops').textContent = data.hopsText;
+                } else if ('hopsRequired' in data) {
                     document.getElementById('metric-hops').textContent = metrics.hopsRequired;
                 }
             }
@@ -2377,16 +2545,12 @@
                             
                             // Create and animate a dropped packet
                             setTimeout(() => {
-                                // Create packet data for dropped packet
+                                // Create packet data for dropped packet (overheard reception, NOT an extra radio transmission)
                                 const packetData = createPacket(
                                     nodeMap[connection.pathNodeId], 
                                     nodeMap[connection.offPathNodeId], 
                                     'packet-dropped'
                                 );
-                                
-                                // Increment packet count
-                                directPackets++;
-                                updateMetrics({ packetsSent: (discoveryPackets || 0) + directPackets });
                                 
                                 // Show a partial animation that ends with a dropped packet effect
                                 const sourceRing = networkGroup.append('circle')
@@ -2414,293 +2578,466 @@
                 }
             }
             
-            function animateMeshtasticFlooding() {
-                // Reset visualization
+            function getMeshtasticOptions() {
+                const modeEl = document.getElementById('meshtastic-mode');
+                const hopEl = document.getElementById('hop-limit-slider');
+                const roleEl = document.getElementById('meshtastic-roles');
+                const preserveEl = document.getElementById('preserve-router-hops');
+                const presetEl = document.getElementById('lora-preset');
+                const payloadEl = document.getElementById('payload-size');
+                return {
+                    mode: modeEl ? modeEl.value : 'broadcast',
+                    hopLimit: hopEl ? parseInt(hopEl.value, 10) : 7,
+                    roleProfile: roleEl ? roleEl.value : 'strategic',
+                    preserveRouterHops: preserveEl ? !!preserveEl.checked : false,
+                    preset: presetEl ? presetEl.value : 'LONG_FAST',
+                    textBytes: payloadEl ? parseInt(payloadEl.value, 10) : 20
+                };
+            }
+
+            function renderComparisonTable(cmp) {
+                const host = document.getElementById('comparison-table-host');
+                if (!host || !cmp) return;
+                const fmtProp = ms => (ms == null ? 'Unreached' : formatMs(ms));
+                const rows = [
+                    {
+                        cls: 'row-meshtastic',
+                        name: 'Meshtastic Managed Flood (Broadcast)',
+                        tx1: cmp.meshtasticBroadcast.first.transmissions,
+                        bytes1: formatBytesBits(cmp.meshtasticBroadcast.first.totalBytes),
+                        prop1: fmtProp(cmp.meshtasticBroadcast.first.deliveredMs),
+                        air1: formatMs(cmp.meshtasticBroadcast.first.totalAirtimeMs),
+                        tx10: cmp.meshtasticBroadcast.multi.tx,
+                        bytes10: formatBytesBits(cmp.meshtasticBroadcast.multi.bytes),
+                        air10: formatMs(cmp.meshtasticBroadcast.multi.airtimeMs)
+                    },
+                    {
+                        cls: 'row-meshtastic',
+                        name: 'Meshtastic DM (NextHopRouter: 1st flood+ACK, 2–10 learned 1B next_hop)',
+                        tx1: cmp.meshtasticDm.first.transmissions,
+                        bytes1: formatBytesBits(cmp.meshtasticDm.first.totalBytes),
+                        prop1: fmtProp(cmp.meshtasticDm.first.deliveredMs),
+                        air1: formatMs(cmp.meshtasticDm.first.totalAirtimeMs),
+                        tx10: cmp.meshtasticDm.multi.tx,
+                        bytes10: formatBytesBits(cmp.meshtasticDm.multi.bytes),
+                        air10: formatMs(cmp.meshtasticDm.multi.airtimeMs)
+                    },
+                    {
+                        cls: 'row-meshcore',
+                        name: `MeshCore (${cmp.meshcore.first.repeaterCount} repeaters, ${cmp.meshcore.first.companionCount} silent companions: 1st discovery+return, 2–10 direct)`,
+                        tx1: cmp.meshcore.first.transmissions,
+                        bytes1: formatBytesBits(cmp.meshcore.first.totalBytes),
+                        prop1: fmtProp(cmp.meshcore.first.deliveredMs),
+                        air1: formatMs(cmp.meshcore.first.totalAirtimeMs),
+                        tx10: cmp.meshcore.multi.tx,
+                        bytes10: formatBytesBits(cmp.meshcore.multi.bytes),
+                        air10: formatMs(cmp.meshcore.multi.airtimeMs)
+                    },
+                    {
+                        cls: 'row-naive',
+                        name: 'Naive Blind Flood (baseline, no suppression)',
+                        tx1: cmp.naiveFlood.first.transmissions,
+                        bytes1: formatBytesBits(cmp.naiveFlood.first.totalBytes),
+                        prop1: '—',
+                        air1: formatMs(cmp.naiveFlood.first.totalAirtimeMs),
+                        tx10: cmp.naiveFlood.multi.tx,
+                        bytes10: formatBytesBits(cmp.naiveFlood.multi.bytes),
+                        air10: formatMs(cmp.naiveFlood.multi.airtimeMs)
+                    }
+                ];
+
+                host.innerHTML = `
+                    <table class="comparison-summary-table" aria-label="1-message vs 10-message propagation, bits, and airtime comparison">
+                        <thead>
+                            <tr>
+                                <th>Approach (${cmp.preset.label}, ${cmp.textBytes} B text)</th>
+                                <th>1 Msg TX</th>
+                                <th>1 Msg On-Air Data</th>
+                                <th>1st Msg Prop (A→Z)</th>
+                                <th>1 Msg Channel Air</th>
+                                <th>10 Msgs TX</th>
+                                <th>10 Msgs On-Air Data</th>
+                                <th>10 Msgs Channel Air</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rows.map(r => `
+                                <tr class="${r.cls}">
+                                    <td>${r.name}</td>
+                                    <td>${r.tx1}</td>
+                                    <td>${r.bytes1}</td>
+                                    <td>${r.prop1}</td>
+                                    <td>${r.air1}</td>
+                                    <td><strong>${r.tx10}</strong></td>
+                                    <td><strong>${r.bytes10}</strong></td>
+                                    <td><strong>${r.air10}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            function clearComparisonTable() {
+                const host = document.getElementById('comparison-table-host');
+                if (host) host.innerHTML = '';
+            }
+
+            function assignRouterRoles(nodeList, roleProfile = 'strategic') {
+                const rolesMap = {};
+                nodeList.forEach(node => {
+                    node.role = 'CLIENT';
+                    rolesMap[node.id] = 'CLIENT';
+                });
+                const routerIds = [];
+                const routerLateIds = [];
+
+                if (roleProfile !== 'clients-only') {
+                    const targetRole = roleProfile === 'router-late' ? 'ROUTER_LATE' : 'ROUTER';
+                    const ranked = nodeList
+                        .filter(node => node.id !== 'A' && node.id !== 'Z')
+                        .slice()
+                        .sort((a, b) => b.range - a.range);
+                    const count = Math.max(1, Math.round(nodeList.length * 0.05));
+                    ranked.slice(0, count).forEach(node => {
+                        node.role = targetRole;
+                        rolesMap[node.id] = targetRole;
+                        if (targetRole === 'ROUTER') routerIds.push(node.id);
+                        else routerLateIds.push(node.id);
+                    });
+                    nodeList.forEach(node => {
+                        if (node.name && node.name.includes('Hub') && node.id !== 'A' && node.id !== 'Z' && node.role === 'CLIENT') {
+                            node.role = targetRole;
+                            rolesMap[node.id] = targetRole;
+                            if (targetRole === 'ROUTER') routerIds.push(node.id);
+                            else routerLateIds.push(node.id);
+                        }
+                    });
+                }
+
+                networkGroup.selectAll('.network-node')
+                    .filter(d => d.role === 'ROUTER')
+                    .attr('stroke', '#e65100')
+                    .attr('stroke-width', 3);
+                networkGroup.selectAll('.network-node')
+                    .filter(d => d.role === 'ROUTER_LATE')
+                    .attr('stroke', '#0277bd')
+                    .attr('stroke-width', 3);
+
+                return { rolesMap, routerIds, routerLateIds };
+            }
+
+            function paintNodeIds(ids, fill) {
+                if (!ids || ids.length === 0) return;
+                const wanted = new Set(ids);
+                networkGroup.selectAll('.network-node')
+                    .filter(d => wanted.has(d.id))
+                    .interrupt()
+                    .attr('fill', fill);
+            }
+
+            function markRelayCancelled(node, targetGroup = networkGroup) {
+                if (!node) return;
+                targetGroup.append('circle')
+                    .attr('class', 'relay-cancelled')
+                    .attr('cx', node.x)
+                    .attr('cy', node.y)
+                    .attr('r', 18)
+                    .attr('fill', 'none')
+                    .attr('stroke', '#455a64')
+                    .attr('stroke-width', 2)
+                    .attr('stroke-dasharray', '3,2')
+                    .attr('pointer-events', 'none');
+            }
+
+            function runMeshCoreDiscrete(mode) {
                 resetVisualization();
-                
-                // Reset metrics
+                const run = meshtasticRun;
+                setMetricMode('meshcore');
                 resetMetrics();
-                
-                // Update caption
-                document.getElementById('phase-caption').innerText = 
-                    'Meshtastic Flooding: Radio signals propagate through all nodes within range, which rebroadcast once per message to maximize delivery probability.';
-                
-                // Find nodes by ID
+
+                const opts = getMeshtasticOptions();
+                const repeaterIds = lastMeshCoreRepeaters || ManagedFlood.selectMeshCoreRepeaters(nodes, links, 'A', 'Z');
+                lastMeshCoreRepeaters = repeaterIds;
+                const repeaterSet = new Set(repeaterIds);
+
+                nodes.forEach(n => {
+                    n.role = n.id === 'A' || n.id === 'Z' ? 'COMPANION' : (repeaterSet.has(n.id) ? 'REPEATER' : 'COMPANION');
+                });
+                networkGroup.selectAll('.network-node')
+                    .filter(d => repeaterSet.has(d.id))
+                    .attr('stroke', '#1565c0')
+                    .attr('stroke-width', 3);
+
+                const result = ManagedFlood.simulateMeshCore(nodes, links, {
+                    sourceId: 'A',
+                    destId: 'Z',
+                    mode: mode,
+                    repeaterIds: repeaterIds,
+                    learnedPath: mode === 'direct' ? lastMeshCoreLearnedPath : null,
+                    preset: opts.preset,
+                    textBytes: opts.textBytes
+                });
+                if (mode === 'discovery' && result.learnedPath && result.learnedPath.length >= 2) {
+                    lastMeshCoreLearnedPath = result.learnedPath;
+                }
+                window.__meshcoreResult = result;
+
+                const nodeMap = {};
+                nodes.forEach(n => { nodeMap[n.id] = n; });
+
+                if (mode === 'direct' && result.learnedPath && result.learnedPath.length >= 2) {
+                    for (let i = 0; i < result.learnedPath.length - 1; i++) {
+                        const a = nodeMap[result.learnedPath[i]];
+                        const b = nodeMap[result.learnedPath[i + 1]];
+                        if (!a || !b) continue;
+                        networkGroup.insert('line', '.network-node')
+                            .attr('class', 'path-highlight-line')
+                            .attr('x1', a.x).attr('y1', a.y)
+                            .attr('x2', b.x).attr('y2', b.y)
+                            .attr('stroke', '#1e88e5')
+                            .attr('stroke-width', 3)
+                            .attr('stroke-dasharray', '6,4')
+                            .attr('opacity', 0.7);
+                    }
+                }
+
+                document.getElementById('phase-caption').innerText = mode === 'discovery'
+                    ? `MeshCore Path Discovery (${result.preset.label}, ${opts.textBytes} B text): ${result.repeaterCount} dedicated repeaters (blue outline) flood once without cancelling (appending 1B path hash/hop); ${result.companionCount} companions stay silent.`
+                    : `MeshCore Direct Routing (${result.preset.label}, ${opts.textBytes} B text): forwarding strictly along the learned ${result.hopsToDest || '—'}-hop path; frame shrinks by 1B per hop as each repeater pops its hash.`;
+
+                const stepMs = Math.max(55, Math.min(340, 7500 / Math.max(1, result.playback.length)));
+                const firstDeliveryIdx = result.playback.findIndex(item => item.delivered);
+                let bytesSoFar = 0;
+                let airSoFar = 0;
+
+                result.playback.forEach((step, index) => {
+                    setTimeout(() => {
+                        if (run !== meshtasticRun) return;
+                        const tx = nodeMap[step.id];
+                        if (!tx) return;
+
+                        const isAck = step.packetKind === 'path-ack';
+                        createFloodWave(tx, isAck ? 'ack-wave' : 'meshcore-wave');
+                        networkGroup.selectAll('.node-range')
+                            .filter(d => d.id === step.id)
+                            .classed(isAck ? 'has-sent-ack' : 'has-broadcast', true);
+                        networkGroup.selectAll('.network-node')
+                            .filter(d => d.id === step.id)
+                            .interrupt()
+                            .attr('fill', isAck ? '#9c27b0' : '#1e88e5');
+
+                        paintNodeIds(step.pending, '#ffb74d');
+                        paintNodeIds(step.companionsHeard, '#90caf9');
+                        if (step.droppedOffPath && step.droppedOffPath.length > 0) {
+                            step.droppedOffPath.slice(0, 3).forEach(did => showDroppedMessageEffect(nodeMap[did]));
+                        }
+
+                        bytesSoFar += step.frameBytes || 0;
+                        airSoFar += step.airtimeMs || 0;
+                        const delivered = result.reachedDest && firstDeliveryIdx !== -1 && index >= firstDeliveryIdx;
+
+                        updateMetrics({
+                            packetsSent: index + 1,
+                            totalBytes: bytesSoFar,
+                            airtimeMs: airSoFar,
+                            efficiencyText: `${result.repeaterCount}/${Math.max(1, nodes.length - 2)}`,
+                            deliveryText: delivered ? formatMs(result.deliveredMs) : '—',
+                            hopsText: delivered
+                                ? (result.shortestHops ? `${result.hopsToDest} (min ${result.shortestHops})` : String(result.hopsToDest))
+                                : (result.shortestHops ? `— (min ${result.shortestHops})` : 'no path')
+                        });
+
+                        if (step.delivered) {
+                            networkGroup.selectAll('.network-node')
+                                .filter(d => d.id === 'Z')
+                                .interrupt()
+                                .attr('r', 22)
+                                .transition().duration(280).attr('r', 16);
+                        }
+                    }, index * stepMs);
+                });
+
+                setTimeout(() => {
+                    if (run !== meshtasticRun) return;
+                    if (mode === 'discovery' && result.learnedPath && result.learnedPath.length >= 2) {
+                        for (let i = 0; i < result.learnedPath.length - 1; i++) {
+                            const a = nodeMap[result.learnedPath[i]];
+                            const b = nodeMap[result.learnedPath[i + 1]];
+                            if (!a || !b) continue;
+                            networkGroup.insert('line', '.network-node')
+                                .attr('class', 'path-highlight-line')
+                                .attr('x1', a.x).attr('y1', a.y)
+                                .attr('x2', b.x).attr('y2', b.y)
+                                .attr('stroke', '#9c27b0')
+                                .attr('stroke-width', 3)
+                                .attr('stroke-dasharray', '6,4')
+                                .attr('opacity', 0.75);
+                        }
+                    }
+                    const propStr = result.reachedDest
+                        ? `Z decoded at hop ${result.hopsToDest} in ${formatMs(result.deliveredMs)}${result.ackReturnedMs ? ` (direct path/ACK returned to A at ${formatMs(result.ackReturnedMs)})` : ''}.`
+                        : 'Z was not reached on this topology.';
+                    document.getElementById('phase-caption').innerText =
+                        `MeshCore ${mode === 'discovery' ? 'Discovery' : 'Direct'} complete: ${result.transmissions} TX, ${formatBytesBits(result.totalBytes)} on air, ${formatMs(result.totalAirtimeMs)} total channel airtime. ${propStr}`;
+                }, result.playback.length * stepMs + 350);
+            }
+
+            function animateMeshtasticFlooding() {
+                resetVisualization();
+                const run = meshtasticRun;
+                setMetricMode('meshtastic');
+                resetMetrics();
+
+                const opts = getMeshtasticOptions();
+                const { rolesMap, routerIds, routerLateIds } = assignRouterRoles(nodes, opts.roleProfile);
+                const learnedPath = opts.mode === 'dm-nexthop' ? findOptimalPath() : null;
+
+                const result = ManagedFlood.simulate(nodes, links, {
+                    hopLimit: opts.hopLimit,
+                    sourceId: 'A',
+                    destId: 'Z',
+                    mode: opts.mode,
+                    roles: rolesMap,
+                    preserveRouterHops: opts.preserveRouterHops,
+                    learnedPath: learnedPath,
+                    preset: opts.preset,
+                    textBytes: opts.textBytes
+                });
+                const naiveRef = ManagedFlood.simulateNaiveReference(nodes, links, {
+                    hopLimit: opts.hopLimit,
+                    sourceId: 'A',
+                    destId: 'Z',
+                    preset: opts.preset,
+                    textBytes: opts.textBytes
+                });
+                window.__floodResult = result;
+                window.__naiveRef = naiveRef;
+
                 const nodeMap = {};
                 nodes.forEach(node => {
                     nodeMap[node.id] = node;
                 });
-                
-                // Sets to track nodes at different stages:
-                const pendingBroadcast = new Set(); // Nodes queued to broadcast
-                const hasNodeBroadcast = new Set(['A']); // Nodes that have already broadcast (completed)
-                const rebroadcastQueue = [];
-                
-                // Start timing for delivery time metric
-                const startTime = Date.now();
-                let hasReachedDestination = false;
-                let totalPackets = 0;
-                
-                // Constants to control flooding visualization
-                const MAX_CONCURRENT_ANIMATIONS = 25; // Limit number of concurrent animations
-                const MAX_FLOOD_DEPTH = 7; // Meshtastic is limited to 7 hops
-                let activeAnimations = 0;
-                
-                // Start flood from node A with visible waves
-                floodFromNode('A', 0);
-                
-                function floodFromNode(nodeId, depth) {
-                    if (depth > MAX_FLOOD_DEPTH) return; // Limit recursion depth
-                    
-                    const sourceNode = nodes.find(n => n.id === nodeId);
-                    
-                    // Create a visible flood wave from this node if it's a key node
-                    // Only show waves for original nodes (A-Z) to reduce visual clutter
-                    if (nodeId.length === 1) {
-                        createFloodWave(sourceNode, 'meshtastic-wave');
-                    }
-                    
-                    // Mark this node as having broadcast - this is crucial for preventing duplicate broadcasts
-                    hasNodeBroadcast.add(nodeId);
-                    // Remove from pending if it was there
-                    pendingBroadcast.delete(nodeId);
-                    
-                    // Update the node's signal radius visualization to show it has broadcast
+
+                const roleSummary = opts.roleProfile === 'clients-only'
+                    ? 'all CLIENT nodes'
+                    : opts.roleProfile === 'router-late'
+                        ? `${routerLateIds.length} ROUTER_LATE hub${routerLateIds.length === 1 ? '' : 's'} (blue outline, clamp to late window)`
+                        : `${routerIds.length} ROUTER hub${routerIds.length === 1 ? '' : 's'} (orange outline, early window, do not cancel)`;
+
+                const modeIntro = opts.mode === 'dm-nexthop'
+                    ? `Meshtastic Learned Next-Hop DM (${result.preset.label}, ${opts.textBytes} B text): packet carries a 1-byte next_hop ID; only the designated relay forwards.`
+                    : opts.mode === 'dm-first'
+                        ? `Meshtastic 1st Direct Message (${result.preset.label}, ${opts.textBytes} B text): managed flood to Z (hop_limit=${result.hopLimit}), Z does not rebroadcast DM data, then Z sends a routing ACK (purple) that suppresses remaining relays.`
+                        : `Meshtastic Channel Broadcast (${result.preset.label}, ${opts.textBytes} B text): hop_limit=${result.hopLimit} (max ${result.hopLimit + 1} radio hops; shortest graph path: ${result.shortestHops == null ? 'disconnected' : result.shortestHops + ' hops'}), ${roleSummary}.`;
+
+                document.getElementById('phase-caption').innerText = modeIntro;
+
+                let cancelledSoFar = 0;
+                let bytesSoFar = 0;
+                let airSoFar = 0;
+                const stepMs = Math.max(45, Math.min(280, 8000 / Math.max(1, result.playback.length)));
+                const firstDeliveryIdx = result.playback.findIndex(item => item.delivered);
+
+                function playStep(step, index) {
+                    if (run !== meshtasticRun) return;
+                    const transmitter = nodeMap[step.id];
+                    if (!transmitter) return;
+
+                    const isAck = step.packetKind === 'ack';
+                    createFloodWave(transmitter, isAck ? 'ack-wave' : 'meshtastic-wave');
                     networkGroup.selectAll('.node-range')
-                        .filter(d => d.id === nodeId)
-                        .classed('has-broadcast', true);
-                    
-                    // Get all connections for this node that are in range
-                    const nodeLinks = links.filter(link => 
-                        (link.source === nodeId || link.target === nodeId));
-                    
-                    // Process all node connections, queue if too many for animation
-                    nodeLinks.forEach((link, index) => {
-                        const targetId = link.source === nodeId ? link.target : link.source;
-                        
-                        // Skip if target has already broadcast OR is pending broadcast
-                        if (hasNodeBroadcast.has(targetId) || pendingBroadcast.has(targetId)) {
-                            setTimeout(() => {
-                                showDroppedMessageEffect(nodeMap[targetId]);
-                            }, 200 + (Math.min(index, 10) * 50)); // Stagger dropped effects but cap to avoid long delays
-                            return;
-                        }
-                        
-                        // Mark this node as pending broadcast to prevent duplicates
-                        pendingBroadcast.add(targetId);
-                        
-                        // Check if we're already at the animation limit
-                        if (activeAnimations >= MAX_CONCURRENT_ANIMATIONS) {
-                            // Queue this broadcast
-                                rebroadcastQueue.push({
-                                    sourceId: nodeId,
-                                    targetId: targetId,
-                                    depth: depth,
-                                    delay: 300
-                                });
-                            return;
-                        }
-                        
-                        // Create packet data instead of actual packet element
-                        const packetData = createPacket(nodeMap[nodeId], nodeMap[targetId], 'packet-meshtastic');
-                        
-                        // Increment packet count and active animations
-                        totalPackets++;
-                        activeAnimations++;
-                        updateMetrics({ packetsSent: totalPackets });
-                        
-                        // Stagger animation start times, but cap to avoid long delays
-                        const staggerDelay = Math.min(index, 10) * 50;
-                        
-                        animatePacket(packetData, nodeMap[nodeId], nodeMap[targetId], 800, 200 + staggerDelay, function() {
-                            // Decrement active animations count
-                            activeAnimations--;
-                            
-                            // Schedule the next wave - node will broadcast if not already in hasNodeBroadcast
-                            if (!hasNodeBroadcast.has(targetId)) {
-                                rebroadcastQueue.push({
-                                    sourceId: targetId,
-                                    targetId: null, // No specific target for flooding
-                                    depth: depth + 1,
-                                    delay: 500
-                                });
-                            } else {
-                                // Already broadcast, remove from pending if needed
-                                pendingBroadcast.delete(targetId);
-                            }
-                            
-                            // Process the queue immediately if we're below the animation limit
-                            if (activeAnimations < MAX_CONCURRENT_ANIMATIONS / 2) {
-                                processRebroadcastQueue();
-                            }
-                            
-                            // If we reached Z, show success effect and update metrics
-                            if (targetId === 'Z' && !hasReachedDestination) {
-                                hasReachedDestination = true;
-                                
-                                // Calculate delivery time
-                                const deliveryTime = Date.now() - startTime;
-                                
-                                // Calculate hop count (by depth)
-                                const hopsRequired = depth + 1;
-                                
-                                // Calculate efficiency (optimal path / total packets)
-                                // A lower ratio means more network congestion
-                                const optimalPath = findOptimalPath();
-                                const efficiency = optimalPath.length > 0 ? 
-                                    (optimalPath.length - 1) / totalPackets : 0;
-                                
-                                // Update metrics
-                                updateMetrics({
-                                    deliveryTime: deliveryTime,
-                                    hopsRequired: hopsRequired,
-                                    efficiency: efficiency
-                                });
-                                
-                                // Flash the destination node
-                                networkGroup.selectAll('.network-node')
-                                    .filter(d => d.id === 'Z')
-                                    .transition()
-                                    .duration(300)
-                                    .attr('r', d => d.type === 'destination' ? 20 : 14)
-                                    .attr('fill', '#4caf50')
-                                    .transition()
-                                    .duration(300)
-                                    .attr('r', d => d.type === 'destination' ? 16 : 12)
-                                    .attr('fill', '#4caf50'); // Keep green permanently
-                                
-                                // Update caption to indicate message arrived but flooding continues
-                                document.getElementById('phase-caption').innerText = 
-                                    'Meshtastic Flooding: Message reached destination, but flooding continues up to 7 hops.';
-                            }
-                        });
+                        .filter(d => d.id === step.id)
+                        .classed(isAck ? 'has-sent-ack' : 'has-broadcast', true);
+                    networkGroup.selectAll('.network-node')
+                        .filter(d => d.id === step.id)
+                        .interrupt()
+                        .attr('fill', isAck ? '#9c27b0' : (step.role === 'ROUTER' ? '#ef6c00' : step.role === 'ROUTER_LATE' ? '#0288d1' : '#2e7d32'));
+
+                    paintNodeIds(step.pending, '#ffb74d');
+                    paintNodeIds(step.upgraded, '#ffb74d');
+                    paintNodeIds(step.clamped, '#29b6f6');
+                    paintNodeIds(step.exhausted, '#4db6ac');
+                    paintNodeIds(step.suppressed, '#66bb6a');
+                    step.suppressed.forEach(id => markRelayCancelled(nodeMap[id]));
+                    if (step.ignoredNextHop && step.ignoredNextHop.length > 0) {
+                        paintNodeIds(step.ignoredNextHop, '#cfd8dc');
+                    }
+                    cancelledSoFar += step.suppressed.length;
+                    bytesSoFar += step.frameBytes || 0;
+                    airSoFar += step.airtimeMs || 0;
+
+                    const delivered = result.reachedDest && firstDeliveryIdx !== -1 && index >= firstDeliveryIdx;
+                    updateMetrics({
+                        packetsSent: index + 1,
+                        totalBytes: bytesSoFar,
+                        airtimeMs: airSoFar,
+                        cancelled: cancelledSoFar,
+                        deliveryText: delivered ? formatMs(result.deliveredMs) : '—',
+                        hopsText: delivered
+                            ? (result.shortestHops ? `${result.hopsToDest} (min ${result.shortestHops})` : String(result.hopsToDest))
+                            : (result.shortestHops ? `— (min ${result.shortestHops})` : 'no path')
                     });
-                    
-                    // Process queue after a delay if no animations were started
-                    if (activeAnimations === 0) {
-                        setTimeout(processRebroadcastQueue, 500);
+
+                    if (step.delivered) {
+                        networkGroup.selectAll('.network-node')
+                            .filter(d => d.id === 'Z')
+                            .interrupt()
+                            .attr('r', 22)
+                            .transition()
+                            .duration(280)
+                            .attr('r', 16);
+                        document.getElementById('phase-caption').innerText = opts.mode === 'dm-first'
+                            ? `Z decoded the DM after ${result.hopsToDest} radio hops (${formatMs(result.deliveredMs)}) and now transmits a routing ACK (purple wave) to learn next_hop and cancel pending relays.`
+                            : `Z decoded the packet after ${result.hopsToDest} radio hops (${formatMs(result.deliveredMs)}, ${result.preset.id}).`;
                     }
                 }
-                
-                function processRebroadcastQueue() {
-                    // Process up to the max concurrent animations limit
-                    let processed = 0;
-                    
-                    // Increase batch size to process queue faster
-                    const batchSize = Math.min(MAX_CONCURRENT_ANIMATIONS, 10);
-                    
-                    while (rebroadcastQueue.length > 0 && activeAnimations < MAX_CONCURRENT_ANIMATIONS && processed < batchSize) {
-                        const nextBroadcast = rebroadcastQueue.shift();
-                        processed++;
-                        
-                        if (nextBroadcast.targetId === null) {
-                            // This is a flooding request
-                            
-                            // FIXED: A node should rebroadcast if it's in pendingBroadcast and not in hasNodeBroadcast
-                            // Only skip if node has already broadcast
-                            if (!hasNodeBroadcast.has(nextBroadcast.sourceId)) {
-                                setTimeout(function() {
-                                    floodFromNode(nextBroadcast.sourceId, nextBroadcast.depth);
-                                }, nextBroadcast.delay);
-                            } else {
-                                // Already broadcast, remove from pending if needed
-                                pendingBroadcast.delete(nextBroadcast.sourceId);
-                            }
-                        } else {
-                            // This is a directed packet
-                            
-                            // Skip if target has already broadcast or is pending
-                            if (hasNodeBroadcast.has(nextBroadcast.targetId) || pendingBroadcast.has(nextBroadcast.targetId)) {
-                                // Show dropped message effect
-                                setTimeout(() => {
-                                    showDroppedMessageEffect(nodeMap[nextBroadcast.targetId]);
-                                }, 200);
-                                continue;
-                            }
-                            
-                            // Mark as pending to prevent duplicates
-                            pendingBroadcast.add(nextBroadcast.targetId);
-                            
-                            // Create packet data
-                            const packetData = createPacket(nodeMap[nextBroadcast.sourceId], nodeMap[nextBroadcast.targetId], 'packet-meshtastic');
-                            
-                            // Increment packet count and active animations
-                            totalPackets++;
-                            activeAnimations++;
-                            updateMetrics({ packetsSent: totalPackets });
-                            
-                            animatePacket(packetData, nodeMap[nextBroadcast.sourceId], nodeMap[nextBroadcast.targetId], 800, 0, function() {
-                                // Decrement active animations count
-                                activeAnimations--;
-                                
-                                // Schedule the next wave only if node hasn't broadcast yet
-                                if (!hasNodeBroadcast.has(nextBroadcast.targetId)) {
-                                    rebroadcastQueue.push({
-                                        sourceId: nextBroadcast.targetId,
-                                        targetId: null,
-                                        depth: nextBroadcast.depth + 1,
-                                        delay: 300
-                                    });
-                                } else {
-                                    // Already broadcast, remove from pending
-                                    pendingBroadcast.delete(nextBroadcast.targetId);
-                                }
-                                
-                                // If we reached Z, update metrics
-                                if (nextBroadcast.targetId === 'Z' && !hasReachedDestination) {
-                                    hasReachedDestination = true;
-                                    
-                                    // Calculate metrics
-                                    const deliveryTime = Date.now() - startTime;
-                                    const hopsRequired = nextBroadcast.depth + 1;
-                                    const optimalPath = findOptimalPath();
-                                    const efficiency = optimalPath.length > 0 ? 
-                                        (optimalPath.length - 1) / totalPackets : 0;
-                                    
-                                    updateMetrics({
-                                        deliveryTime: deliveryTime,
-                                        hopsRequired: hopsRequired,
-                                        efficiency: efficiency
-                                    });
-                                    
-                                    // Flash the destination node and keep it green
-                                    networkGroup.selectAll('.network-node')
-                                        .filter(d => d.id === 'Z')
-                                        .transition()
-                                        .duration(300)
-                                        .attr('r', d => d.type === 'destination' ? 20 : 14)
-                                        .attr('fill', '#4caf50')
-                                        .transition()
-                                        .duration(300)
-                                        .attr('r', d => d.type === 'destination' ? 16 : 12)
-                                        .attr('fill', '#4caf50'); // Keep green permanently
-                                    
-                                    // Update caption
-                                    document.getElementById('phase-caption').innerText = 
-                                        'Meshtastic Flooding: Message reached destination, but flooding continues up to 7 hops.';
-                                }
-                                
-                                // Process more from the queue
-                                if (rebroadcastQueue.length > 0) {
-                                    processRebroadcastQueue();
-                                }
-                            });
-                        }
+
+                result.playback.forEach((step, index) => {
+                    setTimeout(() => playStep(step, index), index * stepMs);
+                });
+
+                setTimeout(() => {
+                    if (run !== meshtasticRun) return;
+                    let diagnosis;
+                    if (result.reachedDest) {
+                        diagnosis = `Z decoded after ${result.hopsToDest} radio hops in ${formatMs(result.deliveredMs)} (shortest graph path: ${result.shortestHops} hops).`;
+                    } else if (result.shortestHops == null) {
+                        diagnosis = `Z is unreachable: this random topology has no connected radio path between A and Z.`;
+                    } else if (!opts.preserveRouterHops && result.shortestHops > result.hopLimit + 1) {
+                        diagnosis = `Z was not reached because the shortest path across this graph is ${result.shortestHops} radio hops, whereas hop_limit=${result.hopLimit} permits at most ${result.hopLimit + 1} radio hops.`;
+                    } else {
+                        diagnosis = `Z was not reached (shortest graph path: ${result.shortestHops} hops; ${result.collisions} collided frame reception${result.collisions === 1 ? '' : 's'} / path contention exhausted hop budget).`;
                     }
-                    
-                    // If there are still items in the queue, schedule another processing round with shorter delay
-                    if (rebroadcastQueue.length > 0) {
-                        setTimeout(processRebroadcastQueue, 400); // Faster processing of queue
-                    }
-                }
+
+                    const phySummary = `On-air: ${formatBytesBits(result.totalBytes)}, channel airtime: ${formatMs(result.totalAirtimeMs)}, CSMA/CAD deferrals: ${result.csmaDeferrals}, collided receptions: ${result.collisions}.`;
+                    const comparisonNote = opts.mode === 'dm-nexthop'
+                        ? `(Naive blind flood would transmit ${naiveRef.transmissions}× / ${formatBytesBits(naiveRef.totalBytes)}.)`
+                        : `(Naive blind flood: ${naiveRef.transmissions} TX / ${formatBytesBits(naiveRef.totalBytes)}.)`;
+
+                    document.getElementById('phase-caption').innerText =
+                        `Complete: ${result.transmissions} TX, ${result.cancelled} relays suppressed. ${diagnosis} ${phySummary} ${comparisonNote}`;
+                }, result.playback.length * stepMs + 350);
             }
-            
+
+            let meshtasticRun = 0;
+
             function resetVisualization(clearOptimalPath = true) {
+                meshtasticRun++;
+                setMetricMode('meshtastic');
+                clearComparisonTable();
+
+                // Ensure any side-by-side comparison overlay is torn down cleanly
+                d3.select('.comparison-container').remove();
+                d3.select('.start-comparison-button').remove();
+                d3.select('.exit-comparison-button').remove();
+                svg.style('display', 'block');
+
                 // Reset the ACK started flag
                 window.ackPhaseStarted = false;
                 
                 // Remove all rings and waves
-                networkGroup.selectAll('.packet-ring, .flood-wave, .ack-pulse').remove();
+                networkGroup.selectAll('.packet-ring, .flood-wave, .ack-pulse, .relay-cancelled').remove();
                 
                 // Clear any existing animations
                 networkGroup.selectAll('.network-node').interrupt();
@@ -2720,160 +3057,190 @@
                 // Reset node colors and message-received class, but keep ACK-received nodes purple
                 networkGroup.selectAll('.network-node')
                     .classed('message-received', false)
+                    .attr('stroke', '#fff')
+                    .attr('stroke-width', 2)
                     .transition()
                     .duration(300)
                     .attr('fill', d => {
-                        if (d.id && window.ackReceivedNodes.has(d.id)) return '#9c27b0'; // Keep ACK-received nodes purple
+                        if (d.id && window.ackReceivedNodes.has(d.id)) return '#9c27b0';
                         if (d.type === 'source') return '#4caf50';
                         if (d.type === 'destination') return '#e91e63';
                         if (d.id === 'E' || d.name.includes('Hub')) return '#ff9800';
                         return '#ddd';
                     })
                     .attr('r', d => {
-                        // Make source and destination nodes larger
                         if (d.type === 'source' || d.type === 'destination') return 16;
-                        // Make hub nodes slightly larger
                         if (d.id === 'E' || d.name.includes('Hub')) return 14;
-                        // Make original nodes (B-H) slightly larger
                         if (d.id.length === 1) return 12;
-                        // Make all other nodes smaller
                         return 8;
                     });
                 
-                // Clear optimal path highlighting if requested
                 if (clearOptimalPath) {
-                    // Remove highlight classes since we no longer have static links
                     networkGroup.selectAll('.highlighted-path').classed('highlighted-path', false);
-                    // Remove any path highlight lines
                     networkGroup.selectAll('.path-highlight-line').remove();
-                    
-                    // Clear the ACK received nodes set if we're fully resetting
                     window.ackReceivedNodes = new Set();
                 }
             }
             
             function animateComparison() {
-                // Reset visualization
                 resetVisualization();
-                
-                // Update caption
-                document.getElementById('phase-caption').innerText = 
-                    'Side-by-Side Comparison: Meshtastic flooding (left) vs MeshCore selective routing (right)';
-                
-                // Split the visualization into two parts
-                const splitWidth = width / 2;
-                
-                // Create comparison container
+                const run = meshtasticRun;
+
+                const opts = getMeshtasticOptions();
+                const { rolesMap } = assignRouterRoles(nodes, opts.roleProfile);
+                const repeaterIds = lastMeshCoreRepeaters || ManagedFlood.selectMeshCoreRepeaters(nodes, links, 'A', 'Z');
+                lastMeshCoreRepeaters = repeaterIds;
+
+                const cmp = ManagedFlood.compareApproaches(nodes, links, {
+                    hopLimit: opts.hopLimit,
+                    sourceId: 'A',
+                    destId: 'Z',
+                    roles: rolesMap,
+                    preserveRouterHops: opts.preserveRouterHops,
+                    repeaterIds: repeaterIds,
+                    preset: opts.preset,
+                    textBytes: opts.textBytes,
+                    messageCount: 10
+                });
+                window.__comparisonResult = cmp;
+                renderComparisonTable(cmp);
+
+                const floodRes = opts.mode === 'dm-nexthop'
+                    ? cmp.meshtasticDm.subsequent
+                    : opts.mode === 'dm-first'
+                        ? cmp.meshtasticDm.first
+                        : cmp.meshtasticBroadcast.first;
+                const mcDirectRes = cmp.meshcore.subsequent;
+                const mcDiscRes = cmp.meshcore.first;
+
+                svg.style('display', 'none');
+
                 const comparisonContainer = d3.select('#network-visualization')
                     .append('div')
                     .attr('class', 'comparison-container')
                     .style('display', 'flex')
                     .style('width', '100%')
                     .style('height', '100%');
-                
-                // Create left view (Meshtastic)
-                const leftView = comparisonContainer
-                    .append('div')
+
+                const leftView = comparisonContainer.append('div')
                     .attr('class', 'comparison-view left-view')
                     .style('width', '50%')
                     .style('height', '100%')
                     .style('position', 'relative')
-                    .style('border-right', '1px dashed #ccc');
-                
-                // Create right view (MeshCore)
-                const rightView = comparisonContainer
-                    .append('div')
+                    .style('border-right', '1px dashed #b0bec5');
+
+                const rightView = comparisonContainer.append('div')
                     .attr('class', 'comparison-view right-view')
                     .style('width', '50%')
                     .style('height', '100%')
                     .style('position', 'relative');
-                
-                // Create SVG for left view
-                const leftSvg = leftView
-                    .append('svg')
+
+                const leftSvg = leftView.append('svg')
                     .attr('width', '100%')
-                    .attr('height', '100%');
-                
-                // Create SVG for right view
-                const rightSvg = rightView
-                    .append('svg')
+                    .attr('height', '100%')
+                    .attr('viewBox', `0 0 ${width} ${height}`)
+                    .attr('preserveAspectRatio', 'xMidYMid meet');
+
+                const rightSvg = rightView.append('svg')
                     .attr('width', '100%')
-                    .attr('height', '100%');
-                
-                // Add labels
+                    .attr('height', '100%')
+                    .attr('viewBox', `0 0 ${width} ${height}`)
+                    .attr('preserveAspectRatio', 'xMidYMid meet');
+
+                const leftG = leftSvg.append('g');
+                const rightG = rightSvg.append('g');
+                const repeaterSet = new Set(repeaterIds);
+
+                function drawMiniTopology(g, modeKind) {
+                    g.selectAll('.mini-node')
+                        .data(nodes)
+                        .enter()
+                        .append('circle')
+                        .attr('class', d => `mini-node mini-${d.id}`)
+                        .attr('cx', d => d.x)
+                        .attr('cy', d => d.y)
+                        .attr('r', d => (d.type === 'source' || d.type === 'destination') ? 15 : (d.id.length === 1 ? 11 : 7))
+                        .attr('fill', d => d.type === 'source' ? '#4caf50' : d.type === 'destination' ? '#e91e63' : '#cfd8dc')
+                        .attr('stroke', d => {
+                            if (modeKind === 'meshtastic') return d.role === 'ROUTER' ? '#e65100' : d.role === 'ROUTER_LATE' ? '#0277bd' : '#fff';
+                            return repeaterSet.has(d.id) ? '#1565c0' : '#fff';
+                        })
+                        .attr('stroke-width', d => {
+                            if (modeKind === 'meshtastic') return (d.role === 'ROUTER' || d.role === 'ROUTER_LATE') ? 3 : 1.5;
+                            return repeaterSet.has(d.id) ? 2.5 : 1.5;
+                        });
+
+                    g.selectAll('.mini-label')
+                        .data(nodes.filter(d => d.id === 'A' || d.id === 'Z'))
+                        .enter()
+                        .append('text')
+                        .attr('x', d => d.x)
+                        .attr('y', d => d.y + 4)
+                        .attr('text-anchor', 'middle')
+                        .attr('fill', '#fff')
+                        .attr('font-size', '12px')
+                        .attr('font-weight', 'bold')
+                        .text(d => d.id);
+                }
+
+                drawMiniTopology(leftG, 'meshtastic');
+                drawMiniTopology(rightG, 'meshcore');
+
+                const modeTitle = opts.mode === 'dm-nexthop'
+                    ? 'Meshtastic DM (Learned Next-Hop)'
+                    : opts.mode === 'dm-first'
+                        ? 'Meshtastic DM (1st Send + ACK)'
+                        : `Meshtastic Managed Flood (hop=${opts.hopLimit})`;
+
                 leftView.append('div')
                     .attr('class', 'view-label')
                     .style('position', 'absolute')
                     .style('top', '10px')
                     .style('left', '10px')
-                    .style('background-color', 'rgba(30, 136, 229, 0.9)')
+                    .style('background-color', 'rgba(46, 125, 50, 0.92)')
                     .style('color', 'white')
                     .style('padding', '5px 10px')
                     .style('border-radius', '4px')
                     .style('font-weight', 'bold')
-                    .text('Meshtastic Flooding');
-                
+                    .style('font-size', '0.85rem')
+                    .text(modeTitle);
+
                 rightView.append('div')
                     .attr('class', 'view-label')
                     .style('position', 'absolute')
                     .style('top', '10px')
                     .style('left', '10px')
-                    .style('background-color', 'rgba(67, 160, 71, 0.9)')
+                    .style('background-color', 'rgba(30, 136, 229, 0.92)')
                     .style('color', 'white')
                     .style('padding', '5px 10px')
                     .style('border-radius', '4px')
                     .style('font-weight', 'bold')
-                    .text('MeshCore Selective Routing');
-                
-                // Add metrics displays
+                    .style('font-size', '0.85rem')
+                    .text('MeshCore Direct Route (after Discovery)');
+
                 const leftMetrics = leftView.append('div')
                     .attr('class', 'view-metrics')
                     .style('position', 'absolute')
                     .style('bottom', '10px')
                     .style('left', '10px')
                     .style('right', '10px')
-                    .style('background-color', 'rgba(255, 255, 255, 0.9)')
-                    .style('padding', '5px')
+                    .style('background-color', 'rgba(255, 255, 255, 0.94)')
+                    .style('padding', '6px 8px')
                     .style('border-radius', '4px')
-                    .style('font-size', '0.9em');
-                
+                    .style('font-size', '0.8em');
+
                 const rightMetrics = rightView.append('div')
                     .attr('class', 'view-metrics')
                     .style('position', 'absolute')
                     .style('bottom', '10px')
                     .style('left', '10px')
                     .style('right', '10px')
-                    .style('background-color', 'rgba(255, 255, 255, 0.9)')
-                    .style('padding', '5px')
+                    .style('background-color', 'rgba(255, 255, 255, 0.94)')
+                    .style('padding', '6px 8px')
                     .style('border-radius', '4px')
-                    .style('font-size', '0.9em');
-                
-                leftMetrics.html('<b>Packets:</b> <span id="left-packets">0</span> | <b>Efficiency:</b> <span id="left-efficiency">0%</span> | <b>Time:</b> <span id="left-time">0ms</span>');
-                rightMetrics.html('<b>Packets:</b> <span id="right-packets">0</span> | <b>Efficiency:</b> <span id="right-efficiency">0%</span> | <b>Time:</b> <span id="right-time">0ms</span>');
-                
-                // Hide main SVG
-                svg.style('display', 'none');
-                
-                // Add start button
-                const startButton = d3.select('#network-visualization')
-                    .append('button')
-                    .attr('class', 'start-comparison-button')
-                    .style('position', 'absolute')
-                    .style('top', '50%')
-                    .style('left', '50%')
-                    .style('transform', 'translate(-50%, -50%)')
-                    .style('z-index', '100')
-                    .style('padding', '10px 20px')
-                    .style('background-color', '#e74c3c')
-                    .style('color', 'white')
-                    .style('border', 'none')
-                    .style('border-radius', '5px')
-                    .style('font-weight', 'bold')
-                    .style('cursor', 'pointer')
-                    .text('Start Comparison');
-                
-                // Add exit button
-                const exitButton = d3.select('#network-visualization')
+                    .style('font-size', '0.8em');
+
+                d3.select('#network-visualization')
                     .append('button')
                     .attr('class', 'exit-comparison-button')
                     .style('position', 'absolute')
@@ -2889,49 +3256,140 @@
                     .style('cursor', 'pointer')
                     .text('Exit Comparison')
                     .on('click', exitComparisonView);
-                
-                startButton.on('click', function() {
-                    // Hide the button
-                    d3.select(this).style('display', 'none');
-                    
-                    // Run animations simultaneously
+
+                const nodeMap = {};
+                nodes.forEach(n => { nodeMap[n.id] = n; });
+
+                // Animate Left Pane: Meshtastic
+                const stepMs = Math.max(45, Math.min(240, 6500 / Math.max(1, floodRes.playback.length)));
+                let leftSuppressed = 0;
+                let leftBytes = 0;
+                floodRes.playback.forEach((step, idx) => {
                     setTimeout(() => {
-                        // This is a simplified version showing the concept
-                        alert('For a full comparison, please run the individual animations. The side-by-side comparison requires significant refactoring of the visualization code.');
-                        
-                        // For a proper implementation, you would need to:
-                        // 1. Clone the network generation code to create two separate networks
-                        // 2. Refactor the animation functions to take an SVG container as parameter
-                        // 3. Run the animations in parallel on both networks
-                    }, 100);
+                        if (run !== meshtasticRun) return;
+                        const tx = nodeMap[step.id];
+                        if (!tx) return;
+                        leftG.append('circle')
+                            .attr('cx', tx.x)
+                            .attr('cy', tx.y)
+                            .attr('r', 10)
+                            .attr('fill', 'none')
+                            .attr('stroke', step.packetKind === 'ack' ? '#9c27b0' : '#4caf50')
+                            .attr('stroke-width', 3)
+                            .attr('stroke-opacity', 0.85)
+                            .transition()
+                            .duration(1400)
+                            .attr('r', tx.range)
+                            .attr('stroke-opacity', 0)
+                            .remove();
+
+                        leftG.selectAll(`.mini-${step.id}`)
+                            .attr('fill', step.packetKind === 'ack' ? '#9c27b0' : (step.role === 'ROUTER' ? '#ef6c00' : '#2e7d32'));
+                        step.suppressed.forEach(sid => {
+                            leftG.selectAll(`.mini-${sid}`).attr('fill', '#66bb6a');
+                            markRelayCancelled(nodeMap[sid], leftG);
+                        });
+                        leftSuppressed += step.suppressed.length;
+                        leftBytes += step.frameBytes || 0;
+                        leftMetrics.html(
+                            `<b>TX:</b> ${idx + 1} | <b>Data:</b> ${formatBytesBits(leftBytes)} | <b>Prop:</b> ${floodRes.reachedDest ? formatMs(floodRes.deliveredMs) : 'Unreached'} | <b>Suppressed:</b> ${leftSuppressed}`
+                        );
+                    }, idx * stepMs);
                 });
+
+                // Animate Right Pane: MeshCore cached direct route on exact same LoRa PHY
+                const directPath = mcDirectRes.learnedPath || [];
+                if (mcDirectRes.playback.length > 0) {
+                    for (let i = 0; i < directPath.length - 1; i++) {
+                        const a = nodeMap[directPath[i]];
+                        const b = nodeMap[directPath[i + 1]];
+                        if (!a || !b) continue;
+                        rightG.append('line')
+                            .attr('x1', a.x).attr('y1', a.y)
+                            .attr('x2', b.x).attr('y2', b.y)
+                            .attr('stroke', '#1e88e5')
+                            .attr('stroke-width', 3)
+                            .attr('stroke-dasharray', '6,4')
+                            .attr('opacity', 0.65);
+                    }
+                    let rightBytes = 0;
+                    mcDirectRes.playback.forEach((step, hopIdx) => {
+                        setTimeout(() => {
+                            if (run !== meshtasticRun) return;
+                            const tx = nodeMap[step.id];
+                            if (!tx) return;
+                            rightG.append('circle')
+                                .attr('cx', tx.x)
+                                .attr('cy', tx.y)
+                                .attr('r', 10)
+                                .attr('fill', 'none')
+                                .attr('stroke', '#1e88e5')
+                                .attr('stroke-width', 3)
+                                .transition()
+                                .duration(900)
+                                .attr('r', tx.range)
+                                .attr('stroke-opacity', 0)
+                                .remove();
+                            if (step.id !== 'A') rightG.selectAll(`.mini-${step.id}`).attr('fill', '#1e88e5');
+                            if (step.delivered) rightG.selectAll('.mini-Z').attr('fill', '#e91e63');
+                            rightBytes += step.frameBytes || 0;
+                            rightMetrics.html(
+                                `<b>Direct TX:</b> ${hopIdx + 1}/${mcDirectRes.transmissions} | <b>Data:</b> ${formatBytesBits(rightBytes)} | <b>Prop:</b> ${formatMs(mcDirectRes.deliveredMs)} (1st disc: ${mcDiscRes.transmissions} TX / ${formatBytesBits(mcDiscRes.totalBytes)})`
+                            );
+                        }, hopIdx * 420);
+                    });
+                } else {
+                    rightMetrics.html('<b>No connected path between A and Z on this topology.</b>');
+                }
+
+                setMetricMode('meshtastic');
+                updateMetrics({
+                    packetsSent: floodRes.transmissions,
+                    totalBytes: floodRes.totalBytes,
+                    airtimeMs: floodRes.totalAirtimeMs,
+                    cancelled: floodRes.cancelled,
+                    deliveryText: floodRes.reachedDest ? formatMs(floodRes.deliveredMs) : '—',
+                    hopsText: floodRes.shortestHops ? `${floodRes.hopsToDest || '—'} (min ${floodRes.shortestHops})` : 'no path'
+                });
+
+                document.getElementById('phase-caption').innerText =
+                    `Side-by-Side (${cmp.preset.label}, ${opts.textBytes} B text) — see the 1-message vs 10-message propagation, bits & airtime table below.`;
             }
             
             function exitComparisonView() {
-                // Remove comparison elements
                 d3.select('.comparison-container').remove();
                 d3.select('.start-comparison-button').remove();
                 d3.select('.exit-comparison-button').remove();
-                
-                // Show main SVG again
                 svg.style('display', 'block');
-                
-                // Reset the visualization
                 resetVisualization();
-                
-                // Reset active button state
                 document.querySelectorAll('.control-button').forEach(btn => {
                     btn.classList.remove('active');
                 });
                 document.getElementById('btn-meshtastic').classList.add('active');
-                
-                // Reset caption
-                document.getElementById('phase-caption').innerText = 
-                    'Select a routing method to visualize different approaches to mesh networking. Adjust node count and radius range (min/max) to experiment with different network densities.';
-                
-                // Reset metrics
-                resetMetrics();
+                animateMeshtasticFlooding();
             }
+
+            // Re-run live when simulation controls change
+            ['lora-preset', 'payload-size', 'meshtastic-mode', 'hop-limit-slider', 'meshtastic-roles', 'preserve-router-hops'].forEach(ctrlId => {
+                const el = document.getElementById(ctrlId);
+                if (!el) return;
+                el.addEventListener('input', function() {
+                    if (ctrlId === 'hop-limit-slider') {
+                        document.getElementById('hop-limit-value').textContent = this.value;
+                    }
+                    if (document.getElementById('btn-compare').classList.contains('active')) {
+                        animateComparison();
+                    } else if (document.getElementById('btn-meshcore-phase1').classList.contains('active')) {
+                        runMeshCoreDiscrete('discovery');
+                    } else if (document.getElementById('btn-meshcore-phase2').classList.contains('active')) {
+                        runMeshCoreDiscrete('direct');
+                    } else {
+                        document.querySelectorAll('.control-button').forEach(btn => btn.classList.remove('active'));
+                        document.getElementById('btn-meshtastic').classList.add('active');
+                        animateMeshtasticFlooding();
+                    }
+                });
+            });
             
             // Start with Meshtastic flooding by default
             setTimeout(animateMeshtasticFlooding, 500);
