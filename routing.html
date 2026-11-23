@@ -73,6 +73,23 @@
             background-color: var(--accent-color);
             color: white;
         }
+
+        .run-button {
+            padding: 8px 18px;
+            background-color: #e65100;
+            color: #fff;
+            border: 2px solid #bf360c;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .run-button:hover {
+            background-color: #ef6c00;
+        }
         
         .phase-caption {
             text-align: center;
@@ -514,6 +531,9 @@
                 <button id="btn-reset" class="control-button">
                     <i class="fas fa-redo"></i> Reset
                 </button>
+                <button id="btn-run" class="run-button" type="button">
+                    <i class="fas fa-play"></i> Run
+                </button>
             </div>
             
             <div class="network-topology-selector">
@@ -715,6 +735,26 @@
             let nodeCount = 90; // Default node count
             let maxNodeRadius = 200; // Default max node radius
             let minNodeRadius = 20; // Default min node radius
+
+            function runActiveSimulation() {
+                if (document.getElementById('btn-compare').classList.contains('active')) {
+                    animateComparison();
+                    return;
+                }
+                if (document.getElementById('btn-meshcore-phase1').classList.contains('active')) {
+                    runMeshCoreDiscrete('discovery');
+                    return;
+                }
+                if (document.getElementById('btn-meshcore-phase2').classList.contains('active')) {
+                    runMeshCoreDiscrete('direct');
+                    return;
+                }
+                document.querySelectorAll('.control-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('btn-meshtastic').classList.add('active');
+                animateMeshtasticFlooding();
+            }
+
+            document.getElementById('btn-run').addEventListener('click', runActiveSimulation);
             
             // Add event listener for node count slider
             document.getElementById('node-count-slider').addEventListener('input', function() {
@@ -723,8 +763,8 @@
             });
             
             document.getElementById('node-count-slider').addEventListener('change', function() {
-                // Regenerate network with new node count when slider is released
                 generateNetwork(currentTopology);
+                runActiveSimulation();
             });
             
             // Add event listener for max radius range slider
@@ -742,8 +782,8 @@
             });
             
             document.getElementById('radius-range-slider').addEventListener('change', function() {
-                // Regenerate network with new radius range when slider is released
                 generateNetwork(currentTopology);
+                runActiveSimulation();
             });
             
             // Add event listener for min radius range slider
@@ -760,8 +800,8 @@
             });
             
             document.getElementById('min-radius-slider').addEventListener('change', function() {
-                // Regenerate network with new min radius when slider is released
                 generateNetwork(currentTopology);
+                runActiveSimulation();
             });
             
             // Topology configurations
@@ -814,16 +854,9 @@
                     });
                     this.classList.add('active');
                     
-                    // Generate new network with selected topology
                     currentTopology = topologyType;
                     generateNetwork(topologyType);
-                    
-                    // Reset any active simulation
-                    resetVisualization();
-                    
-                    // Update caption
-                    document.getElementById('phase-caption').innerText = 
-                        `Network Topology: ${topologies[topologyType].name} - ${topologies[topologyType].description}`;
+                    runActiveSimulation();
                 });
             });
             
@@ -3369,26 +3402,18 @@
                 animateMeshtasticFlooding();
             }
 
-            // Re-run live when simulation controls change
-            ['lora-preset', 'payload-size', 'meshtastic-mode', 'hop-limit-slider', 'meshtastic-roles', 'preserve-router-hops'].forEach(ctrlId => {
-                const el = document.getElementById(ctrlId);
-                if (!el) return;
-                el.addEventListener('input', function() {
-                    if (ctrlId === 'hop-limit-slider') {
-                        document.getElementById('hop-limit-value').textContent = this.value;
-                    }
-                    if (document.getElementById('btn-compare').classList.contains('active')) {
-                        animateComparison();
-                    } else if (document.getElementById('btn-meshcore-phase1').classList.contains('active')) {
-                        runMeshCoreDiscrete('discovery');
-                    } else if (document.getElementById('btn-meshcore-phase2').classList.contains('active')) {
-                        runMeshCoreDiscrete('direct');
-                    } else {
-                        document.querySelectorAll('.control-button').forEach(btn => btn.classList.remove('active'));
-                        document.getElementById('btn-meshtastic').classList.add('active');
-                        animateMeshtasticFlooding();
-                    }
-                });
+            // Protocol settings update their labels immediately. Releasing a control runs the
+            // selected mode; the Run buttons do the same on demand.
+            document.getElementById('hop-limit-slider').addEventListener('input', function() {
+                document.getElementById('hop-limit-value').textContent = this.value;
+            });
+            document.getElementById('meshtastic-mode').addEventListener('change', function() {
+                document.querySelectorAll('.control-button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById('btn-meshtastic').classList.add('active');
+                runActiveSimulation();
+            });
+            ['lora-preset', 'payload-size', 'hop-limit-slider', 'meshtastic-roles', 'preserve-router-hops'].forEach(id => {
+                document.getElementById(id).addEventListener('change', runActiveSimulation);
             });
             
             // Start with Meshtastic flooding by default
