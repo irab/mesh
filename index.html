@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Meshtastic vs MeshCore Comparison - WORK IN PROGRESS!</title>
+    <title>Meshtastic vs MeshCore Comparison</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 </head>
@@ -53,9 +53,9 @@
                         <h3>MeshCore</h3>
                     </div>
                     <div class="card-body">
-                        <p>MeshCore is a lightweight, portable C++ library for multi-hop packet routing in embedded projects using LoRa and other packet radios. It aims to provide a balanced approach to mesh networking with a focus on simplicity and scalability for custom embedded solutions.</p>
+                        <p>MeshCore is a lightweight, portable C++ library and firmware suite for multi-hop packet routing over LoRa and other packet radios. It separates silent client companions from dedicated infrastructure repeaters and room servers, combining flood discovery with path-specific direct routing.</p>
                         <div class="card-links">
-                            <a href="https://meshcore.co.uk/" target="_blank" class="button">Official Website <i class="fas fa-external-link-alt"></i></a>
+                            <a href="https://meshcore.io/" target="_blank" class="button">Official Website <i class="fas fa-external-link-alt"></i></a>
                         </div>
                     </div>
                 </div>
@@ -81,23 +81,23 @@
                     <tbody>
                         <tr>
                             <td><strong>License</strong></td>
-                            <td>Open Source</td>
-                            <td>Open Source (MIT License)</td>
+                            <td>Open Source (GPL-3.0)</td>
+                            <td>Open Source (MIT core firmware/library)</td>
                         </tr>
                         <tr>
                             <td><strong>Architecture</strong></td>
-                            <td>Focused on complete mesh networking solution</td>
-                            <td>Lightweight library for packet routing</td>
+                            <td>Complete mesh networking firmware &amp; app ecosystem</td>
+                            <td>Modular C++ routing library &amp; role-specific firmwares</td>
                         </tr>
                         <tr>
                             <td><strong>Target Use</strong></td>
-                            <td>General-purpose mesh communication</td>
-                            <td>Custom embedded solutions</td>
+                            <td>General-purpose off-grid communication, sensors &amp; telemetry</td>
+                            <td>Repeater-backed meshes, room servers &amp; custom embedded builds</td>
                         </tr>
                         <tr>
                             <td><strong>Routing Method</strong></td>
-                            <td>Managed flooding: SNR contention window, cancel if another node already relayed, hop limit. Known next hops do not flood</td>
-                            <td>Selective forwarding with priority-based routing</td>
+                            <td>Managed flooding (SNR contention window + duplicate cancel + hop limit); learned 1-byte <code>next_hop</code> for DMs</td>
+                            <td>Flood discovery via repeaters (silent companions), then explicit multi-hop direct routing</td>
                         </tr>
                         <tr>
                             <td><strong>Power Consumption</strong></td>
@@ -106,23 +106,23 @@
                         </tr>
                         <tr>
                             <td><strong>Firmware Types</strong></td>
-                            <td>Unified firmware</td>
-                            <td>Four distinct firmware types</td>
+                            <td>Unified firmware configured by device role (<code>CLIENT</code>, <code>CLIENT_MUTE</code>, <code>ROUTER</code>, etc.)</td>
+                            <td>Separate firmwares (BLE/USB/Wi-Fi Companions, Repeater, Room Server, Sensor, KISS Modem)</td>
                         </tr>
                         <tr>
-                            <td><strong>Network Structure</strong></td>
-                            <td>Channel-based with encryption</td>
-                            <td>Route-based with encryption</td>
+                            <td><strong>Encryption &amp; Addressing</strong></td>
+                            <td>AES-CTR shared channel keys + X25519 public-key DMs (PKC)</td>
+                            <td>Ed25519/ECDH shared-secret DMs + shared-key group channels</td>
                         </tr>
                         <tr>
-                            <td><strong>Premium Features</strong></td>
-                            <td>Fully open-source</td>
-                            <td>Some premium features in T-Deck firmware and mobile apps</td>
+                            <td><strong>Apps &amp; Ecosystem</strong></td>
+                            <td>Fully open-source firmware and official mobile/web clients</td>
+                            <td>MIT core firmware &amp; open web/CLI tools; official companion apps have optional paid features (standalone T-Deck UI moved to separate MeshOS line)</td>
                         </tr>
                         <tr>
                             <td><strong>Congestion Control</strong></td>
-                            <td>Role-based scaling and hop limits</td>
-                            <td>Priority-based transmission and airtime budgeting</td>
+                            <td>Managed-flood duplicate cancellation, SNR contention windows, hop limits, TX priorities &amp; interval scaling</td>
+                            <td>Silent companions, direct-route priority (<code>pri=0</code>), token-bucket airtime budget (50% default in v1.18) &amp; region flood caps</td>
                         </tr>
                     </tbody>
                 </table>
@@ -221,7 +221,7 @@
                             </div>
                             <div class="comparison-item">
                                 <h4>MeshCore</h4>
-                                <p>Uses a more selective approach where repeaters don't forward every packet they receive, but only those that need to be routed to specific destinations. This aims for a more efficient use of bandwidth.</p>
+                                <p>Companion nodes never repeat. Dedicated repeaters forward <code>DIRECT</code> packets only when their hash is next in the path header, while <code>FLOOD</code> packets (discovery, adverts, group channels) are forwarded once per repeater within hop and region limits.</p>
                             </div>
                         </div>
                     </div>
@@ -236,11 +236,11 @@
                         <div class="comparison-container">
                             <div class="comparison-item">
                                 <h4>Meshtastic</h4>
-                                <p>Uses channels with shared encryption keys. All nodes in a radio mesh retransmit messages regardless of channel settings.</p>
+                                <p>Combines shared-key encrypted channels with X25519 public-key encrypted Direct Messages (v2.5+). Nodes sharing the same LoRa modem preset and frequency slot participate in managed flooding unless restricted by <code>CLIENT_MUTE</code> or <code>rebroadcast_mode</code> (<code>LOCAL_ONLY</code> / <code>KNOWN_ONLY</code>).</p>
                             </div>
                             <div class="comparison-item">
                                 <h4>MeshCore</h4>
-                                <p>Uses routes for message delivery with public key encryption. Offers room servers that function like BBS systems for persistent message storage.</p>
+                                <p>Combines explicit repeater-hash routes for public-key DMs with flooded shared-key group channels, plus Room Servers that act as store-and-forward BBS hubs for asynchronous messaging.</p>
                             </div>
                         </div>
                     </div>
@@ -278,12 +278,12 @@
                             </div>
                             <div class="comparison-item">
                                 <h4>MeshCore</h4>
-                                <p>Offers four distinct firmware types:</p>
+                                <p>Provides separate role-specific firmware builds:</p>
                                 <ol>
-                                    <li>BLE Companion (connects over Bluetooth)</li>
-                                    <li>USB Serial Companion (connects over USB)</li>
-                                    <li>Repeater (extends network range)</li>
-                                    <li>Room Server (stores message history)</li>
+                                    <li>Companion Radio (BLE, USB Serial, or Wi-Fi — client endpoints, never repeat)</li>
+                                    <li>Repeater (dedicated forwarding backbone)</li>
+                                    <li>Room Server (persistent BBS / message store)</li>
+                                    <li>Sensor &amp; KISS Modem builds</li>
                                 </ol>
                             </div>
                         </div>
@@ -316,9 +316,9 @@
                     </div>
                     <div class="card-body">
                         <ul>
-                            <li>Many simultaneous senders can still congest the channel. Managed flooding stops duplicate client relays; it does not remove every transmission</li>
-                            <li>Limited ability to prioritize critical messages during high traffic</li>
-                            <li>Hop limit, duplicate history, and airtime still bound how far and how often a packet is repeated</li>
+                            <li>Many simultaneous channel broadcasts can still saturate airtime — managed flooding cancels redundant client relays, but every broadcast wave still spans the mesh</li>
+                            <li>Misconfigured ground-level <code>ROUTER</code> nodes or chatty telemetry defaults can degrade channel capacity</li>
+                            <li>Default hop limit is 3 (max 7), trading extreme hop count for bounded channel utilization</li>
                         </ul>
                     </div>
                 </div>
@@ -380,12 +380,11 @@
                     </div>
                     <div class="card-body">
                         <ul>
-                            <li>Custom embedded solutions requiring lightweight implementation</li>
-                            <li>Networks needing more selective message routing for bandwidth efficiency</li>
-                            <li>Use cases benefiting from the room server concept for persistent message storage</li>
-                            <li>Applications where T-Deck hardware integration is important</li>
-                            <li>Dense node deployments where network congestion is a concern</li>
-                            <li>Long-term communication scenarios requiring sustainable bandwidth usage</li>
+                            <li>Custom embedded C++ projects needing a lightweight routing library</li>
+                            <li>Planned networks with dedicated hilltop repeaters and silent handheld companions</li>
+                            <li>Communities using Room Servers for asynchronous BBS-style message storage</li>
+                            <li>Dense urban deployments where explicit multi-hop direct paths and region flood caps keep airtime low</li>
+                            <li>Long-term fixed-infrastructure meshes prioritizing sustained unicast throughput</li>
                         </ul>
                     </div>
                 </div>
@@ -429,6 +428,7 @@
             <p>AI-generated analysis for educational purposes only. Not affiliated with Meshtastic or MeshCore.</p>
             <div class="footer-links">
                 <a href="index.html">Overview</a>
+                <a href="routing.html">Routing Visualization</a>
                 <a href="technical.html">Technical Details</a>
             </div>
         </div>

@@ -20,6 +20,7 @@
         <div class="container">
             <ul>
                 <li><a href="index.html">Overview</a></li>
+                <li><a href="routing.html">Routing Visualization</a></li>
                 <li><a href="technical.html" class="active">Technical Details</a></li>
             </ul>
         </div>
@@ -376,9 +377,9 @@ uint32_t Mesh::getRetransmitDelay(const mesh::Packet* packet) {
                         
                         <h4>Scalability Concerns</h4>
                         <ul>
-                            <li>Duplicate detection tables are limited in size</li>
-                            <li>As traffic increases, ability to track duplicates decreases</li>
-                            <li>Likely to experience significant packet loss at peak usage</li>
+                            <li>Each new channel broadcast still triggers one managed-flood wave across the mesh</li>
+                            <li>Hidden-terminal LoRa collisions rise sharply when many senders transmit concurrently on slow presets like <code>LONG_FAST</code></li>
+                            <li>Packet pool and TX queue slots fill quickly under sustained burst load</li>
                         </ul>
                     </div>
                 </div>
@@ -455,6 +456,7 @@ uint32_t Mesh::getRetransmitDelay(const mesh::Packet* packet) {
             <p>AI-generated analysis for educational purposes only. Not affiliated with Meshtastic or MeshCore.</p>
             <div class="footer-links">
                 <a href="index.html">Overview</a>
+                <a href="routing.html">Routing Visualization</a>
                 <a href="technical.html">Technical Details</a>
             </div>
         </div>

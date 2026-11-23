@@ -43,9 +43,11 @@ Then visit `http://localhost:8000` in your browser.
 ## Structure
 
 - `index.html` - Main comparison overview
-- `technical.html` - Detailed technical analysis
-- `styles.css` - All styling for the site
-- `script.js` - Interactive elements (accordion, smooth scrolling)
+- `routing.html` - Interactive D3.js discrete-event LoRa routing & airtime visualization
+- `managed-flood.js` - Shared Semtech LoRa PHY/MAC, Meshtastic (`FloodingRouter` / `NextHopRouter`), and MeshCore discrete-event simulation engine
+- `technical.html` - Detailed technical & source-code analysis (`Meshtastic v2.6.4 → v2.7.26 / 2.8 develop`, `MeshCore v1.6.0 → v1.18.0`)
+- `styles.css` - Shared site styling
+- `script.js` - Overview page UI interactions (accordions, smooth scrolling, diagram triggers)
 
 ## Content Sources
 

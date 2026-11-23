@@ -488,7 +488,7 @@
         </div>
         <section id="routing">
             <h2>Mesh Network Routing Visualization</h2>
-            <p>This interactive visualization demonstrates the different routing approaches used by Meshtastic and MeshCore. The Meshtastic view is one channel broadcast using managed flooding: most clients that hear the packet do not transmit it again.</p>
+            <p>This interactive discrete-event simulator models Meshtastic (channel managed flooding, 1st-send DM flood + ACK, and learned 1-byte <code>next_hop</code> DM) alongside MeshCore (dedicated-repeater flood discovery and explicit path-hash direct routing) on the same Semtech LoRa PHY clock.</p>
             
             <div class="legend">
                 <div class="legend-item">
@@ -500,32 +500,28 @@
                     <span>MeshCore Radio Wave</span>
                 </div>
                 <div class="legend-item">
-                    <div class="legend-color" style="background-color: #fd7e14;"></div>
-                    <span>Discovery Wave</span>
-                </div>
-                <div class="legend-item">
                     <div class="legend-color" style="background-color: #ffb74d;"></div>
-                    <span>Waiting in the SNR window</span>
+                    <span>Waiting in backoff window</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #ef6c00; border: 2px solid #e65100;"></div>
-                    <span>ROUTER relay (does not cancel)</span>
+                    <span>Meshtastic ROUTER (early, no cancel)</span>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #90caf9; border: 2px solid #1565c0;"></div>
+                    <span>ROUTER_LATE / MeshCore Repeater (outline) &amp; silent Companion (fill)</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #66bb6a; border: 2px dashed #455a64;"></div>
-                    <span>Heard it, relay cancelled</span>
-                </div>
-                <div class="legend-item">
-                    <div class="legend-color" style="background-color: #dc3545;"></div>
-                    <span>Dropped Signal</span>
+                    <span>Heard duplicate, relay cancelled</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #9c27b0;"></div>
-                    <span>Route ACK Signal</span>
+                    <span>Routing / Path Return ACK</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: #dc3545;"></div>
-                    <span>Red Blink: Node Received But Won't Forward ACK</span>
+                    <span>Off-Path Direct Packet Ignored</span>
                 </div>
                 <div class="legend-item">
                     <div class="legend-color" style="background-color: rgba(76, 175, 80, 0.1); border: 1px dashed #4caf50;"></div>
@@ -685,11 +681,11 @@
                 <div class="compare-item compare-meshcore">
                     <h3>MeshCore Selective Routing</h3>
                     <ul>
-                        <li><strong>Path discovery phase:</strong> Initial flooding to find optimal route to destination</li>
-                        <li><strong>Route establishment:</strong> Creates a persistent path between nodes</li>
-                        <li><strong>Bandwidth efficiency:</strong> After path discovery, only nodes on the route forward packets</li>
-                        <li><strong>Selective forwarding:</strong> Nodes not on the established route drop packets</li>
-                        <li><strong>Adaptable routing:</strong> Routes can be re-established if network topology changes</li>
+                        <li><strong>Silent companions, active repeaters:</strong> Client companions never repeat; only dedicated repeaters forward flood or direct traffic</li>
+                        <li><strong>Path discovery phase:</strong> Repeaters flood once (appending a 1–3 byte hash per hop), and the first copy decoded at Z establishes the route</li>
+                        <li><strong>Direct route return &amp; caching:</strong> Z returns the learned repeater-hash list to A via a direct path/ACK packet</li>
+                        <li><strong>Shrinking direct header:</strong> On subsequent direct sends, only the next matching repeater forwards and pops its hash byte</li>
+                        <li><strong>Automatic fallback:</strong> If a cached direct path fails to ACK, the sender falls back to flood discovery to learn a new route</li>
                     </ul>
                 </div>
             </div>
