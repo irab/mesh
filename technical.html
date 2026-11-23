@@ -144,22 +144,22 @@ if (p->next_hop == NO_NEXT_HOP_PREFERENCE ||
                         </ul>
                         
                         <div class="code-section">
-                            <h5>NextHopRouter Constants <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/NextHopRouter.h" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <h5>NextHopRouter Constants <a href="https://github.com/meshtastic/firmware/blob/develop/src/mesh/NextHopRouter.h" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
                             <pre><code class="language-cpp">// develop (2.8). v2.6.4 and v2.7.26 used 2 for the intermediate count.
 constexpr static uint8_t NUM_INTERMEDIATE_RETX = 3;
 constexpr static uint8_t NUM_RELIABLE_RETX = 3;</code></pre>
                         </div>
                         
-                        <h4>Congestion Control</h4>
-                        <p>Meshtastic scales intervals based on network congestion:</p>
+                        <h4>Congestion Control &amp; Packet Priority</h4>
+                        <p>Meshtastic scales periodic intervals based on node count and orders its TX queue by <code>MeshPacket.priority</code>:</p>
                         <ul>
-                            <li>Router/repeater nodes don't have their intervals scaled</li>
-                            <li>Tracker/sensor nodes get priority for position and telemetry</li>
-                            <li>Regular nodes scale back transmission as the network grows</li>
+                            <li>TX queue priorities rank ACKs (<code>120</code>), alerts (<code>110</code>), and reliable DMs (<code>70</code>) ahead of default messages (<code>64</code>) and background telemetry/position (<code>10</code>)</li>
+                            <li><code>ROUTER</code> nodes don't have periodic intervals scaled; <code>SENSOR</code>/<code>TRACKER</code> roles keep priority for telemetry and position</li>
+                            <li>Regular <code>CLIENT</code> nodes scale back periodic broadcasts as the network grows</li>
                         </ul>
                         
                         <div class="code-section">
-                            <h5>Congestion Scaling <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/Default.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <h5>Congestion Scaling <a href="https://github.com/meshtastic/firmware/blob/develop/src/mesh/Default.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
                             <pre><code class="language-cpp">uint32_t Default::getConfiguredOrDefaultMsScaled(uint32_t configured, uint32_t defaultValue, uint32_t numOnlineNodes)
 {
     // If we are a router, we don't scale the value. It's already significantly higher.
@@ -181,64 +181,59 @@ constexpr static uint8_t NUM_RELIABLE_RETX = 3;</code></pre>
                         <h3>MeshCore Routing Architecture</h3>
                     </div>
                     <div class="card-body">
-                        <p>MeshCore repeaters use three route types. Companion radios originate and receive; they are not the repeater firmware:</p>
+                        <p>MeshCore wire headers encode four route types (<code>FLOOD</code>, <code>DIRECT</code>, plus region-scoped <code>TRANSPORT_FLOOD</code> and <code>TRANSPORT_DIRECT</code> in v1.18). Companion radios originate and receive; only dedicated repeaters forward:</p>
                         <ol>
-                            <li><strong>Flood Routing</strong>: Similar to Meshtastic but with priority-based retransmission</li>
-                            <li><strong>Direct Routing</strong>: Path-specific routing with selective forwarding</li>
-                            <li><strong>Zero-Hop Routing</strong>: For local broadcast without retransmission</li>
+                            <li><strong>Flood Routing (<code>FLOOD</code> / <code>TRANSPORT_FLOOD</code>)</strong>: Repeaters append their path hash (1–3 bytes) and retransmit once with priority- and distance-based scheduling</li>
+                            <li><strong>Direct Routing (<code>DIRECT</code> / <code>TRANSPORT_DIRECT</code>)</strong>: Path-specific forwarding where only the next matching repeater pops its hash and relays</li>
+                            <li><strong>Zero-Hop Helper (<code>sendZeroHop</code>)</strong>: Sends <code>ROUTE_TYPE_DIRECT</code> with <code>path_len = 0</code> for local single-hop neighbors</li>
                         </ol>
                         
                         <h4>Selective Packet Forwarding</h4>
-                        <p>MeshCore only forwards packets if they match specific criteria:</p>
+                        <p>MeshCore repeaters only forward direct packets when they match the head of the path:</p>
                         <ul>
-                            <li>Only forwards direct-routed packets if this node is the next hop</li>
-                            <li>Does not retransmit packets it has seen before</li>
-                            <li>Removes its hash from the path before rebroadcasting direct packets</li>
+                            <li>Only forwards direct-routed packets if this repeater's hash matches the next entry in <code>pkt-&gt;path</code></li>
+                            <li>Checks the seen-packet ring buffer (<code>wasSeen</code> / <code>markSeen</code>) before forwarding</li>
+                            <li>Removes its own <code>1–3</code> byte hash via <code>removeSelfFromPath(pkt)</code> so the frame shrinks at every hop</li>
                         </ul>
                         
                         <div class="code-section">
-                            <h5>Packet Routing Logic <a href="https://github.com/ripplebiz/MeshCore/blob/main/src/Mesh.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
-                            <pre><code class="language-cpp">DispatcherAction Mesh::onRecvPacket(Packet* pkt) {
-  if (pkt->isRouteDirect() && pkt->path_len >= PATH_HASH_SIZE) {
-    if (self_id.isHashMatch(pkt->path) && allowPacketForward(pkt)) {
-      if (_tables->hasSeen(pkt)) return ACTION_RELEASE;  // don't retransmit!
-
-      // remove our hash from 'path', then re-broadcast
-      pkt->path_len -= PATH_HASH_SIZE;
-      memcpy(pkt->path, &pkt->path[PATH_HASH_SIZE], pkt->path_len);
-
-      uint32_t d = getDirectRetransmitDelay(pkt);
-      return ACTION_RETRANSMIT_DELAYED(0, d);  // Routed traffic is HIGHEST priority 
+                            <h5>Packet Routing Logic (v1.18) <a href="https://github.com/meshcore-dev/MeshCore/blob/main/src/Mesh.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">if (pkt-&gt;isRouteDirect() &amp;&amp; pkt-&gt;getPathHashCount() &gt; 0) {
+  if (self_id.isHashMatch(pkt-&gt;path, pkt-&gt;getPathHashSize()) &amp;&amp; allowPacketForward(pkt)) {
+    uint32_t d = getDirectRetransmitDelay(pkt);
+    if (!_tables-&gt;wasSeen(pkt)) {
+      _tables-&gt;markSeen(pkt);
+      removeSelfFromPath(pkt);
+      return ACTION_RETRANSMIT_DELAYED(0, d);  // Routed traffic is HIGHEST priority
     }
-    return ACTION_RELEASE;   // this node is NOT the next hop (OR this packet has already been forwarded), so discard.
   }
-  // Additional routing logic...
+  return ACTION_RELEASE;  // Not next hop (or already forwarded), discard
 }</code></pre>
                         </div>
                         
                         <h4>Priority-Based Transmission</h4>
-                        <p>MeshCore uses a priority system for transmissions:</p>
+                        <p>MeshCore schedules outbound packets by priority (lower number = higher priority):</p>
                         <ul>
-                            <li>Direct messages get highest priority (0)</li>
-                            <li>Regular messages get medium priority (1)</li>
-                            <li>Path discovery packets get lower priority (2)</li>
-                            <li>Advertisements get lowest priority (3)</li>
+                            <li>Direct-routed packets get highest priority (<code>0</code>), and flooded relays degrade priority as hop count grows (<code>packet-&gt;getPathHashCount()</code>)</li>
+                            <li>Originated flood data messages start at priority <code>1</code></li>
+                            <li>Path return / discovery packets start at priority <code>2</code></li>
+                            <li>Advertisements start at lowest priority (<code>3</code>)</li>
                         </ul>
                         
                         <div class="code-section">
-                            <h5>Flood Routing with Priority <a href="https://github.com/ripplebiz/MeshCore/blob/main/src/Mesh.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
-                            <pre><code class="language-cpp">void Mesh::sendFlood(Packet* packet, uint32_t delay_millis) {
-  packet->header &= ~PH_ROUTE_MASK;
-  packet->header |= ROUTE_TYPE_FLOOD;
-  packet->path_len = 0;
+                            <h5>Flood Routing with Priority (v1.18) <a href="https://github.com/meshcore-dev/MeshCore/blob/main/src/Mesh.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">void Mesh::sendFlood(Packet* packet, uint32_t delay_millis, uint8_t path_hash_size) {
+  packet-&gt;header &amp;= ~PH_ROUTE_MASK;
+  packet-&gt;header |= ROUTE_TYPE_FLOOD;
+  packet-&gt;setPathHashSizeAndCount(path_hash_size, 0);
 
-  _tables->hasSeen(packet); // mark this packet as already sent in case it is rebroadcast back to us
+  _tables-&gt;markSeen(packet);
 
   uint8_t pri;
-  if (packet->getPayloadType() == PAYLOAD_TYPE_PATH) {
+  if (packet-&gt;getPayloadType() == PAYLOAD_TYPE_PATH) {
     pri = 2;
-  } else if (packet->getPayloadType() == PAYLOAD_TYPE_ADVERT) {
-    pri = 3;   // de-prioritie these
+  } else if (packet-&gt;getPayloadType() == PAYLOAD_TYPE_ADVERT) {
+    pri = 3;   // de-prioritise adverts
   } else {
     pri = 1;
   }
@@ -249,20 +244,23 @@ constexpr static uint8_t NUM_RELIABLE_RETX = 3;</code></pre>
                         <h4>Congestion Mitigation</h4>
                         <p>MeshCore employs several congestion mitigation techniques:</p>
                         <ul>
-                            <li><strong>Airtime Budget</strong>: Nodes limit to approximately 33% airtime utilization</li>
-                            <li><strong>Randomized Delays</strong>: Prevents collision storms after regional events</li>
-                            <li><strong>Path-Based Priority</strong>: Messages closer to source get higher priority</li>
+                            <li><strong>Token-Bucket Airtime Budget</strong>: Uses <code>duty_cycle = 1 / (1 + factor)</code>. v1.6 defaulted to factor <code>2.0</code> (~33.3% airtime); v1.18 defaults to factor <code>1.0</code> (50% airtime, configurable via <code>airtime_factor</code>)</li>
+                            <li><strong>Airtime-Scaled Flood Jitter</strong>: Spreads simultaneous repeater retransmissions across <code>0..5 × (airtime / 2)</code></li>
+                            <li><strong>Hop-Count Priority Decay</strong>: Flooded packets lose priority with each hop (<code>pri = getPathHashCount()</code>)</li>
                         </ul>
                         
                         <div class="code-section">
-                            <h5>Airtime Budget <a href="https://github.com/ripplebiz/MeshCore/blob/main/src/Dispatcher.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
-                            <pre><code class="language-cpp">float Dispatcher::getAirtimeBudgetFactor() const {
-  return 2.0;   // default, 33.3%  (1/3rd)
-}</code></pre>
+                            <h5>Airtime Budget &amp; Flood Retransmit Jitter <a href="https://github.com/meshcore-dev/MeshCore/blob/main/src/Dispatcher.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">// Dispatcher.cpp (v1.18 default factor = 1.0 -&gt; 50% duty cycle; v1.6 used 2.0 -&gt; 33.3%)
+float Dispatcher::getAirtimeBudgetFactor() const {
+  return 1.0;
+}
 
-                            <h5>Randomized Delay Implementation <a href="https://github.com/ripplebiz/MeshCore/blob/main/RippleCore/src/MeshTransportFull.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
-                            <pre><code class="language-cpp">// Multiple nodes around sender could all try to rebroadcast at once, so apply a random delay
-uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</code></pre>
+// Mesh.cpp: randomized flood retransmit delay scaled by packet airtime
+uint32_t Mesh::getRetransmitDelay(const mesh::Packet* packet) {
+  uint32_t t = (_radio-&gt;getEstAirtimeFor(packet-&gt;getRawLength()) * 52 / 50) / 2;
+  return _rng-&gt;nextInt(0, 5) * t;
+}</code></pre>
                         </div>
                     </div>
                 </div>
@@ -294,19 +292,19 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
                         
                         <h4>Resource Utilization</h4>
                         <div class="code-section">
-                            <h5>Packet Pool Definition <a href="https://github.com/meshtastic/firmware/blob/master/src/mesh/Router.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <h5>Packet Pool Definition <a href="https://github.com/meshtastic/firmware/blob/develop/src/mesh/Router.cpp" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
                             <pre><code class="language-cpp">#define MAX_RX_FROMRADIO 4 // max number of packets destined to our queue
 #define MAX_PACKETS (MAX_RX_TOPHONE + MAX_RX_FROMRADIO + 2 * MAX_TX_QUEUE + 2) // max number of packets in flight</code></pre>
                         </div>
                         <ul>
                             <li>Packet pool size is limited and could be quickly exhausted</li>
-                            <li>Under heavy load, oldest packets would be dropped from queues</li>
+                            <li>Under heavy load, lower-priority or oldest queued packets are dropped first</li>
                         </ul>
                         
                         <h4>Congestion Control</h4>
                         <ul>
-                            <li>Meshtastic implements hop limits (typically 3-7 hops)</li>
-                            <li>Role-based prioritization helps critical nodes like ROUTER maintain function</li>
+                            <li>Meshtastic implements hop limits (default 3, max 7; adaptive via <code>HopScalingModule</code> on 2.8 develop)</li>
+                            <li><code>MeshPacket.priority</code> orders ACKs and alerts ahead of standard text and background telemetry</li>
                             <li>Client relays are cancelled once another copy is heard. Routers keep theirs, by design</li>
                         </ul>
                     </div>
@@ -317,24 +315,20 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
                     <div class="technical-section">
                         <h4>Selective Forwarding</h4>
                         <div class="code-section">
-                            <h5>Seen Packet Tracking <a href="https://github.com/ripplebiz/MeshCore/blob/main/src/helpers/SimpleMeshTables.h" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
-                            <pre><code class="language-cpp">bool hasSeen(const mesh::Packet* packet) override {
-  if (packet->getPayloadType() == PAYLOAD_TYPE_ACK) {
-    uint32_t ack;
-    memcpy(&ack, packet->payload, 4);
-    for (int i = 0; i < MAX_PACKET_ACKS; i++) {
-      if (ack == _acks[i]) { 
-        if (packet->isRouteDirect()) {
-          _direct_dups++;   // keep some stats
-        } else {
-          _flood_dups++;
-        }
-        return true;
-      }
+                            <h5>Seen Packet Tracking (v1.18) <a href="https://github.com/meshcore-dev/MeshCore/blob/main/src/helpers/SimpleMeshTables.h" target="_blank"><i class="fas fa-external-link-alt"></i></a></h5>
+                            <pre><code class="language-cpp">bool wasSeen(const mesh::Packet* packet) override {
+  uint8_t hash[MAX_HASH_SIZE];
+  packet-&gt;calculatePacketHash(hash);
+
+  const uint8_t* sp = _hashes;
+  for (int i = 0; i &lt; MAX_PACKET_HASHES; i++, sp += MAX_HASH_SIZE) {
+    if (memcmp(hash, sp, MAX_HASH_SIZE) == 0) {
+      if (packet-&gt;isRouteDirect()) _direct_dups++;
+      else _flood_dups++;
+      return true;
     }
-    // Add to seen table...
   }
-  // More implementation...
+  return false;
 }</code></pre>
                         </div>
                         <p>Direct packets are forwarded only by the next hop on the path. Flood packets are still forwarded by each repeater that has not hit the flood hop limit, region filter, or loop check:</p>
@@ -345,14 +339,14 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
                         
                         <h4>Prioritization System</h4>
                         <ul>
-                            <li>Assigns higher priority to direct messages (pri=0) over flood messages (pri=1-3)</li>
-                            <li>Assigns decreasing priority as messages propagate further from source</li>
+                            <li>Assigns highest priority to direct messages (<code>pri = 0</code>) over flood messages (<code>pri = 1..3</code>)</li>
+                            <li>Assigns decreasing priority as flood packets propagate further from source (<code>pri = getPathHashCount()</code>)</li>
                         </ul>
                         
                         <h4>Airtime Management</h4>
                         <ul>
-                            <li>Limits each node to approximately 33% airtime utilization</li>
-                            <li>Implements randomized retransmission delays to prevent collisions</li>
+                            <li>Token-bucket airtime budget caps sustained duty cycle (50% default in v1.18 via <code>airtime_factor = 1.0</code>; 33.3% in v1.6)</li>
+                            <li>Implements airtime-scaled randomized retransmission delays and CAD retry backoff</li>
                         </ul>
                     </div>
                 </div>
@@ -425,10 +419,10 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
                     <h3 class="meshtastic-header">Optimizing Meshtastic</h3>
                     <div class="technical-section">
                         <ol>
-                            <li><strong>Increase Router Density</strong>: Deploy more router/repeater nodes with strategic placement</li>
-                            <li><strong>Hop limit</strong>: The default is 3 and the maximum is 7. Lowering the configured value shortens relay depth</li>
-                            <li><strong>Strengthen Congestion Scaling</strong>: More aggressive scaling at high node counts</li>
-                            <li><strong>Implement Priority-Based Queuing</strong>: Critical messages should have transmission priority</li>
+                            <li><strong>Restrict <code>ROUTER</code> to True High-Site Peaks</strong>: Over-deploying <code>ROUTER</code> increases collisions because routers transmit in the early window and never cancel duplicates; keep ground/handheld nodes on <code>CLIENT</code> or <code>CLIENT_MUTE</code></li>
+                            <li><strong>Hop limit &amp; faster presets</strong>: The default hop limit is 3 (max 7); lowering hop depth or switching dense meshes to faster presets (e.g. <code>MEDIUM_FAST</code> / <code>SHORT_FAST</code>) cuts airtime per hop dramatically</li>
+                            <li><strong>Throttle Background Broadcasts</strong>: Lengthen position, telemetry, and NodeInfo intervals so human text and alerts retain channel capacity</li>
+                            <li><strong>Use Direct Messages Where Possible</strong>: Once <code>NextHopRouter</code> learns a next hop, DMs forward via a single relay per hop instead of flooding</li>
                         </ol>
                     </div>
                 </div>
@@ -437,10 +431,10 @@ uint32_t rand_delay = _rng->nextInt(ANNOUNCE_DELAY_MIN, ANNOUNCE_DELAY_MAX);</co
                     <h3 class="meshcore-header">Optimizing MeshCore</h3>
                     <div class="technical-section">
                         <ol>
-                            <li><strong>Pre-established Room Servers</strong>: Deploy room servers at strategic locations</li>
-                            <li><strong>Optimize Announce Intervals</strong>: Reduce announce frequency in high-density areas</li>
-                            <li><strong>Increase Path Discovery Proactivity</strong>: More aggressive path discovery for critical routes</li>
-                            <li><strong>Adjust Airtime Budget</strong>: Consider reducing below 33% in high-density areas</li>
+                            <li><strong>Pre-established Room Servers &amp; Transport Regions</strong>: Deploy room servers at key hubs and scope floods with v1.18 transport region codes</li>
+                            <li><strong>Optimize Advert &amp; Unscoped Flood Caps</strong>: Tune <code>flood_max_advert</code> and <code>flood_max_unscoped</code> in high-density areas</li>
+                            <li><strong>2- or 3-Byte Path Hashes in Large Meshes</strong>: Avoid single-byte repeater hash collisions across hundreds of repeaters</li>
+                            <li><strong>Tune <code>airtime_factor</code> &amp; <code>rx_delay_base</code></strong>: Raise <code>airtime_factor</code> above <code>1.0</code> (tightening duty cycle below 50%) and enable SNR-based <code>rx_delay_base</code> on dense repeater clusters</li>
                         </ol>
                     </div>
                 </div>

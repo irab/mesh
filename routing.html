@@ -20,6 +20,24 @@
             position: relative;
             overflow: hidden;
         }
+
+        #network-visualization > .routing-split {
+            display: flex;
+            flex-direction: row;
+            flex-wrap: nowrap;
+            gap: 0;
+            width: 100%;
+            height: 100%;
+            min-width: 0;
+        }
+
+        #network-visualization > .routing-split > .comparison-view {
+            flex: 1 1 50%;
+            min-width: 0;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+        }
         
         .controls {
             display: flex;
@@ -682,7 +700,7 @@
                 <ul>
                     <li><strong>Network density:</strong> Dense networks benefit more from selective routing to reduce congestion</li>
                     <li><strong>Node reliability:</strong> Unreliable or mobile nodes may benefit from flooding's redundancy</li>
-                    <li><strong>Message priority:</strong> MeshCore can prioritize critical messages while Meshtastic treats all messages equally</li>
+                    <li><strong>Message priority:</strong> MeshCore prioritizes direct routes (<code>pri=0</code>) and decays flood priority with hop count, while Meshtastic prioritizes ACKs, alerts, and reliable messages ahead of background telemetry in its TX queue</li>
                     <li><strong>Power consumption:</strong> Selective routing typically requires less overall transmission, saving power across the network</li>
                 </ul>
             </div>
@@ -3061,7 +3079,7 @@
                 clearComparisonTable();
 
                 // Ensure any side-by-side comparison overlay is torn down cleanly
-                d3.select('.comparison-container').remove();
+                d3.select('.routing-split').remove();
                 d3.select('.start-comparison-button').remove();
                 d3.select('.exit-comparison-button').remove();
                 svg.style('display', 'block');
@@ -3150,23 +3168,14 @@
 
                 const comparisonContainer = d3.select('#network-visualization')
                     .append('div')
-                    .attr('class', 'comparison-container')
-                    .style('display', 'flex')
-                    .style('width', '100%')
-                    .style('height', '100%');
+                    .attr('class', 'routing-split');
 
                 const leftView = comparisonContainer.append('div')
                     .attr('class', 'comparison-view left-view')
-                    .style('width', '50%')
-                    .style('height', '100%')
-                    .style('position', 'relative')
                     .style('border-right', '1px dashed #b0bec5');
 
                 const rightView = comparisonContainer.append('div')
-                    .attr('class', 'comparison-view right-view')
-                    .style('width', '50%')
-                    .style('height', '100%')
-                    .style('position', 'relative');
+                    .attr('class', 'comparison-view right-view');
 
                 const leftSvg = leftView.append('svg')
                     .attr('width', '100%')
@@ -3238,7 +3247,7 @@
                     .style('font-size', '0.85rem')
                     .text(modeTitle);
 
-                rightView.append('div')
+                const rightLabel = rightView.append('div')
                     .attr('class', 'view-label')
                     .style('position', 'absolute')
                     .style('top', '10px')
@@ -3249,7 +3258,7 @@
                     .style('border-radius', '4px')
                     .style('font-weight', 'bold')
                     .style('font-size', '0.85rem')
-                    .text('MeshCore Direct Route (after Discovery)');
+                    .text('MeshCore Discovery');
 
                 const leftMetrics = leftView.append('div')
                     .attr('class', 'view-metrics')
@@ -3330,48 +3339,94 @@
                     }, idx * stepMs);
                 });
 
-                // Animate Right Pane: MeshCore cached direct route on exact same LoRa PHY
-                const directPath = mcDirectRes.learnedPath || [];
-                if (mcDirectRes.playback.length > 0) {
-                    for (let i = 0; i < directPath.length - 1; i++) {
-                        const a = nodeMap[directPath[i]];
-                        const b = nodeMap[directPath[i + 1]];
-                        if (!a || !b) continue;
-                        rightG.append('line')
-                            .attr('x1', a.x).attr('y1', a.y)
-                            .attr('x2', b.x).attr('y2', b.y)
-                            .attr('stroke', '#1e88e5')
-                            .attr('stroke-width', 3)
-                            .attr('stroke-dasharray', '6,4')
-                            .attr('opacity', 0.65);
-                    }
-                    let rightBytes = 0;
-                    mcDirectRes.playback.forEach((step, hopIdx) => {
+                // Animate Right Pane in two phases: discovery flood, then the learned direct route.
+                // The direct route is only a few hops, so playing it alone finishes before the flood is noticed.
+                function playRightWave(tx, color) {
+                    rightG.append('circle')
+                        .attr('cx', tx.x)
+                        .attr('cy', tx.y)
+                        .attr('r', 12)
+                        .attr('fill', 'none')
+                        .attr('stroke', color)
+                        .attr('stroke-width', 4)
+                        .attr('stroke-opacity', 0.95)
+                        .transition()
+                        .duration(Math.max(700, stepMs * 3))
+                        .attr('r', Math.max(tx.range || 40, 36))
+                        .attr('stroke-opacity', 0)
+                        .remove();
+                }
+
+                const discSteps = mcDiscRes.playback || [];
+                const directSteps = mcDirectRes.playback || [];
+                let rightBytes = 0;
+                rightMetrics.html(discSteps.length
+                    ? `<b>Discovery:</b> 0/${discSteps.length} | repeaters flood, companions stay silent`
+                    : '<b>No MeshCore discovery transmissions on this topology.</b>');
+
+                discSteps.forEach((step, idx) => {
+                    setTimeout(() => {
+                        if (run !== meshtasticRun) return;
+                        const tx = nodeMap[step.id];
+                        if (!tx) return;
+                        const isAck = step.packetKind === 'path-ack';
+                        playRightWave(tx, isAck ? '#9c27b0' : '#1e88e5');
+                        rightG.selectAll('.mini-node')
+                            .filter(d => d.id === step.id)
+                            .attr('fill', isAck ? '#9c27b0' : '#1e88e5');
+                        (step.pending || []).forEach(id => {
+                            rightG.selectAll('.mini-node').filter(d => d.id === id).attr('fill', '#ffb74d');
+                        });
+                        (step.companionsHeard || []).forEach(id => {
+                            rightG.selectAll('.mini-node').filter(d => d.id === id).attr('fill', '#90caf9');
+                        });
+                        if (step.delivered) {
+                            rightG.selectAll('.mini-node').filter(d => d.id === 'Z').attr('fill', '#e91e63');
+                        }
+                        rightBytes += step.frameBytes || 0;
+                        rightMetrics.html(
+                            `<b>${isAck ? 'Path return' : 'Discovery'}:</b> ${idx + 1}/${discSteps.length} | <b>Data:</b> ${formatBytesBits(rightBytes)} | <b>Z:</b> ${mcDiscRes.reachedDest ? formatMs(mcDiscRes.deliveredMs) : '…'}`
+                        );
+                    }, idx * stepMs);
+                });
+
+                const directStart = discSteps.length * stepMs + 500;
+                const hopMs = Math.max(stepMs, 650);
+                if (directSteps.length > 0) {
+                    setTimeout(() => {
+                        if (run !== meshtasticRun) return;
+                        rightLabel.text('MeshCore Direct Route');
+                        rightBytes = 0;
+                    }, directStart - 200);
+                    directSteps.forEach((step, hopIdx) => {
                         setTimeout(() => {
                             if (run !== meshtasticRun) return;
                             const tx = nodeMap[step.id];
+                            const next = nodeMap[step.nextHopId];
                             if (!tx) return;
-                            rightG.append('circle')
-                                .attr('cx', tx.x)
-                                .attr('cy', tx.y)
-                                .attr('r', 10)
-                                .attr('fill', 'none')
-                                .attr('stroke', '#1e88e5')
-                                .attr('stroke-width', 3)
-                                .transition()
-                                .duration(900)
-                                .attr('r', tx.range)
-                                .attr('stroke-opacity', 0)
-                                .remove();
-                            if (step.id !== 'A') rightG.selectAll(`.mini-${step.id}`).attr('fill', '#1e88e5');
-                            if (step.delivered) rightG.selectAll('.mini-Z').attr('fill', '#e91e63');
+                            if (next) {
+                                rightG.append('line')
+                                    .attr('x1', tx.x).attr('y1', tx.y)
+                                    .attr('x2', next.x).attr('y2', next.y)
+                                    .attr('stroke', '#1e88e5')
+                                    .attr('stroke-width', 4)
+                                    .attr('stroke-dasharray', '6,4')
+                                    .attr('opacity', 0.8);
+                            }
+                            playRightWave(tx, '#0d47a1');
+                            if (step.id !== 'A') {
+                                rightG.selectAll('.mini-node').filter(d => d.id === step.id).attr('fill', '#0d47a1');
+                            }
+                            if (step.delivered) {
+                                rightG.selectAll('.mini-node').filter(d => d.id === 'Z').attr('fill', '#e91e63');
+                            }
                             rightBytes += step.frameBytes || 0;
                             rightMetrics.html(
-                                `<b>Direct TX:</b> ${hopIdx + 1}/${mcDirectRes.transmissions} | <b>Data:</b> ${formatBytesBits(rightBytes)} | <b>Prop:</b> ${formatMs(mcDirectRes.deliveredMs)} (1st disc: ${mcDiscRes.transmissions} TX / ${formatBytesBits(mcDiscRes.totalBytes)})`
+                                `<b>Direct:</b> ${hopIdx + 1}/${directSteps.length} | <b>Data:</b> ${formatBytesBits(rightBytes)} | <b>Prop:</b> ${formatMs(mcDirectRes.deliveredMs)}`
                             );
-                        }, hopIdx * 420);
+                        }, directStart + hopIdx * hopMs);
                     });
-                } else {
+                } else if (discSteps.length === 0) {
                     rightMetrics.html('<b>No connected path between A and Z on this topology.</b>');
                 }
 
@@ -3390,7 +3445,7 @@
             }
             
             function exitComparisonView() {
-                d3.select('.comparison-container').remove();
+                d3.select('.routing-split').remove();
                 d3.select('.start-comparison-button').remove();
                 d3.select('.exit-comparison-button').remove();
                 svg.style('display', 'block');

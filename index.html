@@ -147,7 +147,7 @@
                             </div>
                             <div class="comparison-item">
                                 <h4>MeshCore</h4>
-                                <p>Implements three distinct routing modes: Flood Routing (with priority), Direct Routing (path-specific), and Zero-Hop Routing (local broadcast). Focuses on selective forwarding to reduce network load.</p>
+                                <p>Repeaters forward flood packets (with region scoping and hop-count priority decay) and path-specific direct packets (where only the matching next-hop repeater forwards, or zero-hop local direct when <code>path_len = 0</code>). Companion devices do not repeat.</p>
                             </div>
                         </div>
                         
@@ -259,7 +259,7 @@
                             </div>
                             <div class="comparison-item">
                                 <h4>MeshCore</h4>
-                                <p>Employs an airtime budget system (limiting nodes to ~33% of available airtime), combined with priority-based transmission and randomized delays to prevent collision storms.</p>
+                                <p>Employs a token-bucket airtime budget (50% default duty cycle in v1.18 via <code>airtime_factor = 1.0</code>, configurable; 33.3% in v1.6), combined with priority-based scheduling and airtime-scaled flood jitter.</p>
                             </div>
                         </div>
                     </div>
